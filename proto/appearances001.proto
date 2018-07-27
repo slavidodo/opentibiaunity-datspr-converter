@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package OpenTibiaUnity.Protobuf.Appearances001;
+
+// Package name must contain the revision name in order to convert
+// old versions to the new one..
+
+// This is not compaitable with Tibia 11
+// This is written to suit the converted base of the latest/reviewed
+
+// Enums
+
+enum FrameGroupType {
+	FrameGroupType_Idle = 0;
+	FrameGroupType_Walking = 1;
+}
+
+message Appearances {
+	repeated Appearance objects = 1;
+	repeated Appearance outfits = 2;
+	repeated Appearance effects = 3;
+	repeated Appearance missles = 4;
+}
+
+message Appearance {
+	uint32 id = 1;
+	AppearanceFlags flags = 2;
+	repeated FrameGroup frameGroups = 3;
+}
+
+message AppearanceFlags {
+	uint32 ground = 1;
+	bool groundBorder = 2;
+	bool onBottom = 3;
+	bool onTop = 4;
+	bool container = 5;
+	bool stackable = 6;
+	bool forceUse = 7;
+	bool multiUse = 8;
+	uint32 writable = 9;
+	uint32 writableOnce = 10;
+	bool fluidContainer = 11;
+	bool splash = 12;
+	bool notWalkable = 13;
+	bool notMoveable = 14;
+	bool blockProjectile = 15;
+	bool notPathable = 16;
+	bool noMoveAnimation = 17;
+	bool pickupable = 18;
+	bool hangable = 19;
+	bool hookSouth = 20;
+	bool hookEast = 21;
+	bool rotateable = 22;
+	LightInfo light = 23;
+	bool dontHide = 24;
+	bool translucent = 25;
+	Vector2 displacement = 26;
+	uint32 elevation = 27;
+	bool lyingCorpse = 28;
+	bool animateAlways = 29;
+	uint32 minimapColor = 30;
+	uint32 lensHelp = 31;
+	bool fullGround = 32;
+	bool Look = 33;
+	uint32 cloth = 34;
+	MarketInfo market = 35;
+	uint32 defaultAction = 36;
+	bool wrapable = 37;
+	bool unWrapable = 38;
+	bool topEffect = 39;
+	bool usable = 40;
+}
+
+message LightInfo {
+	uint32 intensity = 1;
+	uint32 color = 2;
+}
+
+message Vector2 {
+	uint32 x = 1;
+	uint32 y = 2;
+}
+
+message MarketInfo {
+	uint32 category = 1;
+	uint32 tradeAs = 2;
+	uint32 showAs = 3;
+	string name = 4;
+	uint32 restrictVocation = 5;
+	uint32 requiredLevel = 6;
+}
+
+message FrameGroup {
+	FrameGroupType type = 1;
+	uint32 width = 2;
+	uint32 height = 3;
+	uint32 exactSize = 4;
+	uint32 layers = 5;
+	uint32 patternWidth = 6;
+	uint32 patternHeight = 7;
+	uint32 patternDepth = 8;
+	uint32 phases = 9;
+	FrameAnimation frameAnimation = 10;
+	repeated uint32 sprites = 11;
+}
+
+message FrameAnimation {
+	bool async = 1;
+	int32 loopCount = 2;
+	int32 startPhase = 3;
+	repeated FrameGroupDuration frameGroupDurations = 4;
+}
+
+message FrameGroupDuration {
+	uint32 min = 1;
+	uint32 max = 2;
+}
