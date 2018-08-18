@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -14,7 +15,7 @@ namespace OpenTibiaUnity
 
     static class Program
     {
-        static int referencedSprite = 0;
+        static uint referencedSprite = 0;
         static JArray catalogJson = new JArray();
 
         /// <summary>
@@ -293,8 +294,6 @@ namespace OpenTibiaUnity
                     currentBitmap.Save(filename);
                     currentBitmap.Dispose();
                     gfx.Dispose();
-                    currentBitmap = null;
-                    gfx = null;
 
                     JObject obj = new JObject();
                     obj.Add("type", "sprite");
@@ -304,7 +303,7 @@ namespace OpenTibiaUnity
                     obj.Add("lastspriteid", start + (totalSize / singleSize) - 1);
 
                     catalogJson.Add(obj);
-
+                    
                     start += (totalSize / singleSize);
 
                     currentBitmap = new Bitmap(segment, segment);
@@ -326,16 +325,17 @@ namespace OpenTibiaUnity
                     x = 0;
                 }
                 
-                if (i == sprites.Count - 1) {
+                if (i == sprites.Count) {
                     break;
                 }
 
-                i = Math.Min(i + layer, sprites.Count - 1);
+                i = Math.Min(i + layer, sprites.Count);
                 z++;
             }
 
             if (currentBitmap != null) {
-                string filename = string.Format("sprites/sprites-{0}-{1}.png", start, start + z - 1);
+                int end = start + z;
+                string filename = string.Format("sprites/sprites-{0}-{1}.png", start, end - 1);
 
                 currentBitmap.Save(filename);
                 currentBitmap.Dispose();
@@ -346,55 +346,76 @@ namespace OpenTibiaUnity
                 obj.Add("file", filename);
                 obj.Add("spritetype", spritetype);
                 obj.Add("firstspriteid", start);
-                obj.Add("lastspriteid", start + z - 1);
+                obj.Add("lastspriteid", end - 1);
+                
+                start = end;
                 catalogJson.Add(obj);
             }
         }
 
-        static void DeployNewSprites(FrameGroup frameGroup, int layer) {
+        static void DeployNewSprites(uint id, FrameGroup frameGroup, int layer) {
             var m = frameGroup.Sprites;
             var s = new RepeatedField<uint>();
 
-            int a = 0;
-            while (true) {
-                s.Add((uint)(referencedSprite + (a / layer)));
-                a += layer;
-                if (a >= m.Count) {
-                    break;
-                }
+            int totalNew = (int)Math.Ceiling((double)m.Count / layer);
+            for (int i = 0; i < totalNew; i++) {
+                s.Add(referencedSprite++);
             }
-            
-            referencedSprite += a / layer;
+
             frameGroup.Sprites.Clear();
             frameGroup.Sprites.AddRange(s);
         }
 
-        static void DeploySprites(Appearance appearance, ref RepeatedField<uint>[] sortedFrameGroups) {
-            foreach (FrameGroup frameGroup in appearance.FrameGroups) {
-                if (frameGroup.Width == 1) {
-                    if (frameGroup.Height == 1) {
-                        sortedFrameGroups[0].AddRange(frameGroup.Sprites);
-                        DeployNewSprites(frameGroup, 1);
-                    } else if (frameGroup.Height == 2) {
-                        sortedFrameGroups[1].AddRange(frameGroup.Sprites);
-                        DeployNewSprites(frameGroup, 2);
+        static void DeploySprites(RepeatedField<Appearance> appearances, ref RepeatedField<uint>[] sortedFrameGroups) {
+            List<FrameGroup>[] frameGroups = new List<FrameGroup>[4];
+            frameGroups[0] = new List<FrameGroup>();
+            frameGroups[1] = new List<FrameGroup>();
+            frameGroups[2] = new List<FrameGroup>();
+            frameGroups[3] = new List<FrameGroup>();
+
+            List<uint>[] ids = new List<uint>[4];
+            ids[0] = new List<uint>();
+            ids[1] = new List<uint>();
+            ids[2] = new List<uint>();
+            ids[3] = new List<uint>();
+
+            foreach (var appearance in appearances) {
+                foreach (FrameGroup frameGroup in appearance.FrameGroups) {
+                    if (frameGroup.Width == 1) {
+                        if (frameGroup.Height == 1) {
+                            sortedFrameGroups[0].AddRange(frameGroup.Sprites);
+                            frameGroups[0].Add(frameGroup);
+                            ids[0].Add(appearance.Id);
+                        } else if (frameGroup.Height == 2) {
+                            sortedFrameGroups[1].AddRange(frameGroup.Sprites);
+                            frameGroups[1].Add(frameGroup);
+                            ids[1].Add(appearance.Id);
+                        } else {
+                            //string.Format("Apperance ID: " + appearance.Id + ", Unknown height: " + frameGroup.Height);
+                        }
+                    } else if (frameGroup.Width == 2) {
+                        if (frameGroup.Height == 1) {
+                            sortedFrameGroups[2].AddRange(frameGroup.Sprites);
+                            frameGroups[2].Add(frameGroup);
+                            ids[2].Add(appearance.Id);
+                        } else if (frameGroup.Height == 2) {
+                            sortedFrameGroups[3].AddRange(frameGroup.Sprites);
+                            frameGroups[3].Add(frameGroup);
+                            ids[3].Add(appearance.Id);
+                        } else {
+                            //string.Format("Apperance ID: " + appearance.Id + ", Unknown height: " + frameGroup.Height);
+                        }
                     } else {
-                        string.Format("Apperance ID: " + appearance.Id + ", Unknown height: " + frameGroup.Height);
+                        //string.Format("Apperance ID: " + appearance.Id + ", Unknown Width: " + frameGroup.Width);
                     }
-                } else if (frameGroup.Width == 2) {
-                    if (frameGroup.Height == 1) {
-                        sortedFrameGroups[2].AddRange(frameGroup.Sprites);
-                        DeployNewSprites(frameGroup, 2);
-                    } else if (frameGroup.Height == 2) {
-                        sortedFrameGroups[3].AddRange(frameGroup.Sprites);
-                        DeployNewSprites(frameGroup, 4);
-                    } else {
-                        string.Format("Apperance ID: " + appearance.Id + ", Unknown height: " + frameGroup.Height);
-                    }
-                } else {
-                    string.Format("Apperance ID: " + appearance.Id + ", Unknown Width: " + frameGroup.Width);
                 }
             }
+
+            int h = 0;
+            foreach (var a in frameGroups[0]) DeployNewSprites(ids[0][h++], a, 1); h = 0;
+            foreach (var a in frameGroups[1]) DeployNewSprites(ids[1][h++], a, 2); h = 0;
+            foreach (var a in frameGroups[2]) DeployNewSprites(ids[2][h++], a, 2); h = 0;
+            foreach (var a in frameGroups[3]) DeployNewSprites(ids[3][h++], a, 4);
         }
 
         static void Main(string[] args) {
@@ -424,28 +445,28 @@ namespace OpenTibiaUnity
             // Outfits, Effects, Missles, Items
             // This doesn't affect how it works, you can save the way you want..
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            foreach (Appearance outfit in appearances0001.Outfits) DeploySprites(outfit, ref sortedFrameGroups);
+            DeploySprites(appearances0001.Outfits, ref sortedFrameGroups);
             SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
             SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
             SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
             SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            foreach (Appearance effect in appearances0001.Effects) DeploySprites(effect, ref sortedFrameGroups);
+            DeploySprites(appearances0001.Effects, ref sortedFrameGroups);
             SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
             SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
             SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
             SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            foreach (Appearance missle in appearances0001.Missles) DeploySprites(missle, ref sortedFrameGroups);
+            DeploySprites(appearances0001.Missles, ref sortedFrameGroups);
             SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
             SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
             SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
             SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            foreach (Appearance item in appearances0001.Objects) DeploySprites(item, ref sortedFrameGroups);
+            DeploySprites(appearances0001.Objects, ref sortedFrameGroups);
             SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
             SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
             SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
