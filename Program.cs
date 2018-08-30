@@ -44,6 +44,7 @@ namespace OpenTibiaUnity
             if (thingType.HasAttribute(DatAttributes.Writable)) appearance.Flags.Writable = (ushort)thingType.Attributes[DatAttributes.Writable];
             if (thingType.HasAttribute(DatAttributes.WritableOnce)) appearance.Flags.WritableOnce = (ushort)thingType.Attributes[DatAttributes.WritableOnce];
             if (thingType.HasAttribute(DatAttributes.MinimapColor)) appearance.Flags.MinimapColor = (ushort)thingType.Attributes[DatAttributes.MinimapColor];
+            if (thingType.HasAttribute(DatAttributes.Elevation)) appearance.Flags.Elevation = (ushort)thingType.Attributes[DatAttributes.Elevation];
             if (thingType.HasAttribute(DatAttributes.LensHelp)) appearance.Flags.LensHelp = (ushort)thingType.Attributes[DatAttributes.LensHelp];
             if (thingType.HasAttribute(DatAttributes.Cloth)) appearance.Flags.Cloth = (ushort)thingType.Attributes[DatAttributes.Cloth];
             if (thingType.HasAttribute(DatAttributes.DefaultAction)) appearance.Flags.DefaultAction = (ushort)thingType.Attributes[DatAttributes.DefaultAction];
@@ -115,6 +116,7 @@ namespace OpenTibiaUnity
                 frameGroup.Height = f.Value.Height;
                 frameGroup.Width = f.Value.Width;
                 frameGroup.ExactSize = f.Value.ExactSize;
+                frameGroup.Layers = f.Value.Layers;
                 frameGroup.PatternWidth = f.Value.PatternWidth;
                 frameGroup.PatternHeight = f.Value.PatternHeight;
                 frameGroup.PatternDepth = f.Value.PatternDepth;
