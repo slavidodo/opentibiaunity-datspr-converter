@@ -212,7 +212,7 @@ namespace OpenTibiaUnity
             return bitmap;
         }
         static Bitmap GenerateBitmap64x32From2_32x32(Bitmap[] bitmapArray) {
-            Bitmap bitmap = new Bitmap(64, 64);
+            Bitmap bitmap = new Bitmap(64, 32);
             /*
              * Left: 2
              * Right: 1
@@ -226,7 +226,7 @@ namespace OpenTibiaUnity
             return bitmap;
         }
         static Bitmap GenerateBitmap32x64From2_32x32(Bitmap[] bitmapArray) {
-            Bitmap bitmap = new Bitmap(64, 64);
+            Bitmap bitmap = new Bitmap(32, 64);
             /*
              * Top: 2
              * Bottom: 1
