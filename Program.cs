@@ -15,6 +15,8 @@ namespace OpenTibiaUnity
 
     static class Program
     {
+        public const int SEGMENT_SIZE = 384 * 2;
+
         static uint referencedSprite = 0;
         static JArray catalogJson = new JArray();
 
@@ -240,7 +242,7 @@ namespace OpenTibiaUnity
             return bitmap;
         }
 
-        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, ref OpenTibiaUnity.Core.Sprites.ContentSprites sprParser, int dX, int dY) {
+        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
             GenerateBitmapDelegate gen;
             int layer = 0;
             int spritetype = 1;
@@ -260,25 +262,20 @@ namespace OpenTibiaUnity
                 layer = 4;
                 spritetype = 4;
             }
-
-            int segment = 384;
-            int totalSize = segment * segment;
+            
+            int totalSize = SEGMENT_SIZE * SEGMENT_SIZE;
             int singleSize = dX * dY;
 
             int amountInBitmap = totalSize / (32 * 32); // Any sprite is 32x32, so the total bitmaps should rely on that 
             int totalBitmaps = (int)Math.Ceiling((double)sprites.Count / amountInBitmap);
-
-            int x = 0;
-            int y = 0;
-            int z = 0;
-
             if (totalBitmaps == 0) {
                 return;
             }
             
-            Bitmap currentBitmap = new Bitmap(segment, segment);
+            Bitmap currentBitmap = new Bitmap(SEGMENT_SIZE, SEGMENT_SIZE);
             Graphics gfx = Graphics.FromImage(currentBitmap);
-            
+
+            int x = 0, y = 0, z = 0;
             for (int i = 0; i < sprites.Count;) {
                 Bitmap[] malform_bitmaps = new Bitmap[layer];
                 for (int m = 0; m < layer; m++) {
@@ -290,7 +287,7 @@ namespace OpenTibiaUnity
                 }
 
                 Bitmap generated = gen(malform_bitmaps);
-                if (y >= segment) {
+                if (y >= SEGMENT_SIZE) {
                     string filename = string.Format("sprites/sprites-{0}-{1}.png", start, start + (totalSize / singleSize) - 1);
                     
                     currentBitmap.Save(filename);
@@ -308,11 +305,9 @@ namespace OpenTibiaUnity
                     
                     start += (totalSize / singleSize);
 
-                    currentBitmap = new Bitmap(segment, segment);
+                    currentBitmap = new Bitmap(SEGMENT_SIZE, SEGMENT_SIZE);
                     gfx = Graphics.FromImage(currentBitmap);
-                    x = 0;
-                    y = 0;
-                    z = 0;
+                    x = y = z = 0;
                 }
 
                 try {
@@ -322,7 +317,7 @@ namespace OpenTibiaUnity
                 }
 
                 x += dX;
-                if (x >= segment) {
+                if (x >= SEGMENT_SIZE) {
                     y += dY;
                     x = 0;
                 }
@@ -353,6 +348,8 @@ namespace OpenTibiaUnity
                 start = end;
                 catalogJson.Add(obj);
             }
+
+            GC.Collect();
         }
 
         static void DeployNewSprites(uint id, FrameGroup frameGroup, int layer) {
@@ -420,7 +417,7 @@ namespace OpenTibiaUnity
             foreach (var a in frameGroups[3]) DeployNewSprites(ids[3][h++], a, 4);
         }
 
-        static void Main(string[] args) {
+        static void GenerateEverything() {
             // Generating New appearances
             Appearances appearances0001 = GenerateAppearances001();
 
@@ -442,37 +439,34 @@ namespace OpenTibiaUnity
             int start = 0;
             RepeatedField<uint>[] sortedFrameGroups = new RepeatedField<uint>[4];
 
-            // This is following how tibia did it exactly,
-            // Tibia did every appearances group (32x32, 32x64, 64x32, 64x64)
-            // Outfits, Effects, Missles, Items
-            // This doesn't affect how it works, you can save the way you want..
+            // grouping different sizes into different textures
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
             DeploySprites(appearances0001.Outfits, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
             DeploySprites(appearances0001.Effects, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
             DeploySprites(appearances0001.Missles, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
 
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
             DeploySprites(appearances0001.Objects, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, ref sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, ref sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, ref sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, ref sprParser, 64, 64);
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
 
             // saving appearances.dat (with the respective version)
             using (FileStream file1 = File.Create("appearances001.dat")) {
@@ -484,6 +478,15 @@ namespace OpenTibiaUnity
             using (FileStream file2 = File.Create("catalog-content.json")) {
                 string str = catalogJson.ToString();
                 file2.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
+            }
+        }
+
+        static void Main(string[] args) {
+            try {
+                GenerateEverything();
+            } catch (OutOfMemoryException e) {
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
             }
         }
     }
