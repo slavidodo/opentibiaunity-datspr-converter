@@ -18,13 +18,15 @@ namespace OpenTibiaUnity.Core.Sprites
     public sealed class ContentData
     {
         Net.InputMessage m_BinaryReader;
+        int m_ClientVersion;
 
         public uint DatSignature { get; private set; }
         public ushort ContentRevision { get; private set; }
-        public ThingTypesDict[] ThingTypes { get; private set; } = new ThingTypesDict[(int)ThingCategory.LastCategory];
+        public ThingTypesDict[] ThingTypeDictionaries { get; private set; } = new ThingTypesDict[(int)ThingCategory.LastCategory];
 
-        public ContentData(byte[] buffer) {
+        public ContentData(byte[] buffer, int clientVersion) {
             m_BinaryReader = new Net.InputMessage(buffer);
+            m_ClientVersion = clientVersion;
         }
 
         public void Parse() {
@@ -43,10 +45,10 @@ namespace OpenTibiaUnity.Core.Sprites
                     firstId = 100;
                 }
                 
-                ThingTypes[category] = new ThingTypesDict();
+                ThingTypeDictionaries[category] = new ThingTypesDict();
                 for (ushort id = firstId; id < counts[category]; id++) {
                     ThingType thingType = ThingType.Serialize(id, (ThingCategory)category, ref m_BinaryReader);
-                    ThingTypes[category][id] = thingType;
+                    ThingTypeDictionaries[category][id] = thingType;
                 }
             }
         }

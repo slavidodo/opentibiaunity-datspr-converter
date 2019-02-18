@@ -73,13 +73,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OpenTibiaUnity\AsyncGraphics.cs" />
     <Compile Include="OpenTibiaUnity\Core\Net\NetworkMessage.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ContentData.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ContentSprites.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\DatAttributes.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\FrameGroup.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ThingType.cs" />
-    <Compile Include="OpenTibiaUnity\Protobuf\Appearances001\Appearances.cs" />
+    <Compile Include="OpenTibiaUnity\Protobuf\Appearances\Appearances.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

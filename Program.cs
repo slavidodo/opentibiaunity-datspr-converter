@@ -1,74 +1,126 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.Collections;
 using Newtonsoft.Json.Linq;
-using OpenTibiaUnity.Protobuf.Appearances001;
+using OpenTibiaUnity.Proto.Appearances;
 
 namespace OpenTibiaUnity
 {
     // This is taken from the the OpenOpenTibiaUnity project
     using DatAttributes = Core.Sprites.DatAttributes;
 
+    interface ITokenItem
+    {
+        JObject GetJObject();
+    }
+
+    struct AppearancesToken : ITokenItem
+    {
+        public string file;
+        public JObject GetJObject() {
+            JObject obj = new JObject();
+            obj["type"] = "appearances";
+            obj["file"] = file;
+            return obj;
+        }
+    }
+
+    struct SpritesToken : ITokenItem
+    {
+        public string file;
+        public int spritetype;
+        public int firstspriteid;
+        public int lastspriteid;
+
+        public JObject GetJObject() {
+            JObject obj = new JObject();
+            obj["type"] = "sprite";
+            obj["file"] = file;
+            obj["spritetype"] = spritetype;
+            obj["firstspriteid"] = firstspriteid;
+            obj["lastspriteid"] = lastspriteid;
+            return obj;
+        }
+    }
+
     static class Program
     {
-        public const int SEGMENT_SIZE = 384 * 2;
+        public const int SEGMENT_DIMENTION = 512;
+        public const int BITMAP_SIZE = SEGMENT_DIMENTION * SEGMENT_DIMENTION;
 
         static uint referencedSprite = 0;
         static JArray catalogJson = new JArray();
+        static List<Task> tasks = new List<Task>();
+        static List<ITokenItem> jsonTokens = new List<ITokenItem>();
 
         /// <summary>
-        /// Delegate to generate AxA image from n BxB images (i.e 64x64 from 4 32x32)
+        /// Draw AxA image from n BxB images (i.e 64x64 from 4 32x32)
         /// </summary>
+        /// <param name="gfx">async graphics to draw to</param>
         /// <param name="bitmaps">array of sufficient number of bitmaps</param>
         /// <returns></returns>
-        public delegate Bitmap GenerateBitmapDelegate(Bitmap[] bitmaps);
+        public delegate void DrawBitmapsDelegate(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0);
 
         /// <summary>
         /// Generates protobuf appearance from the legacy thingtype
         /// </summary>
         /// <param name="thingType">thing generated from tibia.dat (old revisions)</param>
         /// <returns></returns>
-        static Appearance GenerateAppearance(OpenTibiaUnity.Core.Sprites.ThingType thingType) {
+        static Appearance GenerateAppearance(Core.Sprites.ThingType thingType) {
             Appearance appearance = new Appearance() {
                 Id = thingType.ID,
             };
-            
+
             if (thingType.Attributes.Count > 0) {
                 appearance.Flags = new AppearanceFlags();
             }
 
             // Flags
-            if (thingType.HasAttribute(DatAttributes.Ground)) appearance.Flags.Ground = (ushort)thingType.Attributes[DatAttributes.Ground];
-            if (thingType.HasAttribute(DatAttributes.Writable)) appearance.Flags.Writable = (ushort)thingType.Attributes[DatAttributes.Writable];
-            if (thingType.HasAttribute(DatAttributes.WritableOnce)) appearance.Flags.WritableOnce = (ushort)thingType.Attributes[DatAttributes.WritableOnce];
-            if (thingType.HasAttribute(DatAttributes.MinimapColor)) appearance.Flags.MinimapColor = (ushort)thingType.Attributes[DatAttributes.MinimapColor];
-            if (thingType.HasAttribute(DatAttributes.Elevation)) appearance.Flags.Elevation = (ushort)thingType.Attributes[DatAttributes.Elevation];
-            if (thingType.HasAttribute(DatAttributes.LensHelp)) appearance.Flags.LensHelp = (ushort)thingType.Attributes[DatAttributes.LensHelp];
-            if (thingType.HasAttribute(DatAttributes.Cloth)) appearance.Flags.Cloth = (ushort)thingType.Attributes[DatAttributes.Cloth];
-            if (thingType.HasAttribute(DatAttributes.DefaultAction)) appearance.Flags.DefaultAction = (ushort)thingType.Attributes[DatAttributes.DefaultAction];
+            if (thingType.HasAttribute(DatAttributes.Ground)) appearance.Flags.Ground = new Ground() { Speed = (ushort)thingType.Attributes[DatAttributes.Ground] };
+            if (thingType.HasAttribute(DatAttributes.Writable)) appearance.Flags.Writable = new Writable() { Length = (ushort)thingType.Attributes[DatAttributes.Writable] };
+            if (thingType.HasAttribute(DatAttributes.WritableOnce)) appearance.Flags.WritableOnce = new Writable() { Length = (ushort)thingType.Attributes[DatAttributes.WritableOnce] };
+            if (thingType.HasAttribute(DatAttributes.MinimapColor)) appearance.Flags.Minimap = new MiniMap() { Color = (ushort)thingType.Attributes[DatAttributes.MinimapColor] };
+            if (thingType.HasAttribute(DatAttributes.Elevation)) appearance.Flags.Elevation = new Elevation() { Elevation_ = (ushort)thingType.Attributes[DatAttributes.Elevation] };
+            if (thingType.HasAttribute(DatAttributes.LensHelp)) appearance.Flags.LensHelp = new LensHelp() { Id = (ushort)thingType.Attributes[DatAttributes.LensHelp] };
+            if (thingType.HasAttribute(DatAttributes.Cloth)) appearance.Flags.Cloth = new Clothes() { Slot = (ushort)thingType.Attributes[DatAttributes.Cloth] };
+
+            // default action
+            if (thingType.HasAttribute(DatAttributes.DefaultAction)) {
+                var defaultAction = new DefaultAction();
+                var oldDefaultActionValue = (ushort)thingType.Attributes[DatAttributes.DefaultAction];
+                if (oldDefaultActionValue > 4)
+                    Console.WriteLine("Invalid default action: " + oldDefaultActionValue + " for item id: " + thingType.ID);
+                appearance.Flags.DefaultAction = new DefaultAction() { Action = (PlayerAction)oldDefaultActionValue };
+            }
 
             if (thingType.HasAttribute(DatAttributes.GroundBorder)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[DatAttributes.GroundBorder];
-            if (thingType.HasAttribute(DatAttributes.OnBottom)) appearance.Flags.OnBottom = (bool)thingType.Attributes[DatAttributes.OnBottom];
-            if (thingType.HasAttribute(DatAttributes.OnTop)) appearance.Flags.OnTop = (bool)thingType.Attributes[DatAttributes.OnTop];
+            if (thingType.HasAttribute(DatAttributes.OnBottom)) appearance.Flags.Bottom = (bool)thingType.Attributes[DatAttributes.OnBottom];
+            if (thingType.HasAttribute(DatAttributes.OnTop)) appearance.Flags.Top = (bool)thingType.Attributes[DatAttributes.OnTop];
             if (thingType.HasAttribute(DatAttributes.Container)) appearance.Flags.Container = (bool)thingType.Attributes[DatAttributes.Container];
             if (thingType.HasAttribute(DatAttributes.Stackable)) appearance.Flags.Stackable = (bool)thingType.Attributes[DatAttributes.Stackable];
+            if (thingType.HasAttribute(DatAttributes.Usable)) appearance.Flags.Use = (bool)thingType.Attributes[DatAttributes.Usable];
             if (thingType.HasAttribute(DatAttributes.ForceUse)) appearance.Flags.ForceUse = (bool)thingType.Attributes[DatAttributes.ForceUse];
             if (thingType.HasAttribute(DatAttributes.MultiUse)) appearance.Flags.MultiUse = (bool)thingType.Attributes[DatAttributes.MultiUse];
             if (thingType.HasAttribute(DatAttributes.FluidContainer)) appearance.Flags.FluidContainer = (bool)thingType.Attributes[DatAttributes.FluidContainer];
             if (thingType.HasAttribute(DatAttributes.Splash)) appearance.Flags.Splash = (bool)thingType.Attributes[DatAttributes.Splash];
-            if (thingType.HasAttribute(DatAttributes.NotWalkable)) appearance.Flags.NotWalkable = (bool)thingType.Attributes[DatAttributes.NotWalkable];
-            if (thingType.HasAttribute(DatAttributes.NotMoveable)) appearance.Flags.NotMoveable = (bool)thingType.Attributes[DatAttributes.NotMoveable];
-            if (thingType.HasAttribute(DatAttributes.BlockProjectile)) appearance.Flags.BlockProjectile = (bool)thingType.Attributes[DatAttributes.BlockProjectile];
-            if (thingType.HasAttribute(DatAttributes.NotPathable)) appearance.Flags.NotPathable = (bool)thingType.Attributes[DatAttributes.NotPathable];
+            if (thingType.HasAttribute(DatAttributes.NotWalkable)) appearance.Flags.Unpassable = (bool)thingType.Attributes[DatAttributes.NotWalkable];
+            if (thingType.HasAttribute(DatAttributes.NotMoveable)) appearance.Flags.Unmoveable = (bool)thingType.Attributes[DatAttributes.NotMoveable];
+            if (thingType.HasAttribute(DatAttributes.BlockProjectile)) appearance.Flags.Unsight = (bool)thingType.Attributes[DatAttributes.BlockProjectile];
+            if (thingType.HasAttribute(DatAttributes.NotPathable)) appearance.Flags.BlockPath = (bool)thingType.Attributes[DatAttributes.NotPathable];
             if (thingType.HasAttribute(DatAttributes.NoMoveAnimation)) appearance.Flags.NoMoveAnimation = (bool)thingType.Attributes[DatAttributes.NoMoveAnimation];
             if (thingType.HasAttribute(DatAttributes.Pickupable)) appearance.Flags.Pickupable = (bool)thingType.Attributes[DatAttributes.Pickupable];
             if (thingType.HasAttribute(DatAttributes.Hangable)) appearance.Flags.Hangable = (bool)thingType.Attributes[DatAttributes.Hangable];
-            if (thingType.HasAttribute(DatAttributes.HookSouth)) appearance.Flags.HookSouth = (bool)thingType.Attributes[DatAttributes.HookSouth];
-            if (thingType.HasAttribute(DatAttributes.HookEast)) appearance.Flags.HookEast = (bool)thingType.Attributes[DatAttributes.HookEast];
+
+            // can have only one hook //
+            if (thingType.HasAttribute(DatAttributes.HookSouth)) appearance.Flags.Hook = new Hook() { Type = HookType.South };
+            else if (thingType.HasAttribute(DatAttributes.HookEast)) appearance.Flags.Hook = new Hook() { Type = HookType.East };
+
             if (thingType.HasAttribute(DatAttributes.Rotateable)) appearance.Flags.Rotateable = (bool)thingType.Attributes[DatAttributes.Rotateable];
             if (thingType.HasAttribute(DatAttributes.DontHide)) appearance.Flags.DontHide = (bool)thingType.Attributes[DatAttributes.DontHide];
             if (thingType.HasAttribute(DatAttributes.Translucent)) appearance.Flags.Translucent = (bool)thingType.Attributes[DatAttributes.Translucent];
@@ -79,10 +131,9 @@ namespace OpenTibiaUnity
             if (thingType.HasAttribute(DatAttributes.Wrapable)) appearance.Flags.Wrapable = (bool)thingType.Attributes[DatAttributes.Wrapable];
             if (thingType.HasAttribute(DatAttributes.Unwrapable)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[DatAttributes.Unwrapable];
             if (thingType.HasAttribute(DatAttributes.TopEffect)) appearance.Flags.TopEffect = (bool)thingType.Attributes[DatAttributes.TopEffect];
-            if (thingType.HasAttribute(DatAttributes.Usable)) appearance.Flags.Usable = (bool)thingType.Attributes[DatAttributes.Usable];
 
             if (thingType.HasAttribute(DatAttributes.Light)) {
-                var lightInfo = (OpenTibiaUnity.Core.Sprites.LightInfo)thingType.Attributes[DatAttributes.Light];
+                var lightInfo = (Core.Sprites.LightInfo)thingType.Attributes[DatAttributes.Light];
 
                 appearance.Flags.Light = new LightInfo() {
                     Intensity = lightInfo.intensity,
@@ -91,15 +142,15 @@ namespace OpenTibiaUnity
             }
 
             if (thingType.HasAttribute(DatAttributes.Displacement)) {
-                var displacement = (OpenTibiaUnity.Core.Sprites.Vector2Int)thingType.Attributes[DatAttributes.Displacement];
-                appearance.Flags.Displacement = new Vector2() {
+                var displacement = (Core.Sprites.Vector2Int)thingType.Attributes[DatAttributes.Displacement];
+                appearance.Flags.Displacement = new Displacement() {
                     X = (uint)displacement.x,
                     Y = (uint)displacement.y,
                 };
             }
 
             if (thingType.HasAttribute(DatAttributes.Market)) {
-                var Market = (OpenTibiaUnity.Core.Sprites.MarketData)thingType.Attributes[DatAttributes.Market];
+                var Market = (Core.Sprites.MarketData)thingType.Attributes[DatAttributes.Market];
 
                 appearance.Flags.Market = new MarketInfo() {
                     Category = (uint)Market.category,
@@ -152,51 +203,66 @@ namespace OpenTibiaUnity
         /// <summary>
         /// Loads tibia.dat and generates new a list of appearances
         /// </summary>
+        /// <param name="datFile">the attributes file (tibia.dat)</param>
+        /// <param name="version">the client version of this dat</param>
         /// <returns></returns>
-        static Appearances GenerateAppearances001() {
+        static Appearances GenerateAppearances(string datFile, int version) {
             try {
-                var bytes = File.ReadAllBytes("tibia.dat");
-                OpenTibiaUnity.Core.Sprites.ContentData parser = new OpenTibiaUnity.Core.Sprites.ContentData(bytes);
-                parser.Parse();
+                Core.Sprites.ContentData datParser = new Core.Sprites.ContentData(File.ReadAllBytes(datFile), version);
+                datParser.Parse();
 
-                Appearances appearances0001 = new Appearances();
-
-                int index = 0;
-                foreach (var thingsDict in parser.ThingTypes) {
-                    foreach (var thingIt in thingsDict) {
-                        var a = GenerateAppearance(thingIt.Value);
-
-                        if (index == 0) {
-                            appearances0001.Objects.Add(a);
-                        } else if (index == 1) {
-                            appearances0001.Outfits.Add(a);
-                        } else if (index == 2) {
-                            appearances0001.Effects.Add(a);
-                        } else if (index == 3) {
-                            appearances0001.Missles.Add(a);
+                Appearances appearances = new Appearances();
+                for (int i = 0; i < datParser.ThingTypeDictionaries.Length; i++) {
+                    var dict = datParser.ThingTypeDictionaries[i];
+                    foreach (var pair in dict) {
+                        Appearance appearance = GenerateAppearance(pair.Value);
+                        switch (i) {
+                            case 0: appearances.Objects.Add(appearance); break;
+                            case 1: appearances.Outfits.Add(appearance); break;
+                            case 2: appearances.Effects.Add(appearance); break;
+                            case 3: appearances.Missles.Add(appearance); break;
                         }
                     }
-
-                    index++;
                 }
-
-                JObject obj = new JObject();
-                obj.Add("type", "appearances");
-                obj.Add("file", "appearances001.dat");
-
-                catalogJson.Add(obj);
-
-                return appearances0001;
-            } catch (System.Exception e) {
-                Console.WriteLine(e.Message);
+                
+                jsonTokens.Add(new AppearancesToken() {
+                    file = "appearances.dat"
+                });
+                return appearances;
+            } catch (Exception e) {
+                Console.WriteLine(e.Message + '\n' + e.StackTrace);
                 Environment.Exit(0);
             }
 
             return null;
         }
         
-        static Bitmap GenerateBitmap64x64From4_32x32(Bitmap[] bitmapArray) {
-            Bitmap bitmap = new Bitmap(64, 64);
+        static void DrawBitmap32x32From1_32x32(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0) {
+            /*
+             * Fill: 1
+            */
+
+            if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x, y, 32, 32);
+        }
+        static void DrawBitmap64x32From2_32x32(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0) {
+            /*
+             * Left: 2
+             * Right: 1
+            */
+
+            if (bitmaps[1] != null) gfx.DrawImage(bitmaps[1], x, y, 32, 32);
+            if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x + 32, y, 32, 32);
+        }
+        static void DrawBitmap32x64From2_32x32(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0) {
+            /*
+             * Top: 2
+             * Bottom: 1
+            */
+
+            if (bitmaps[1] != null) gfx.DrawImage(bitmaps[1], x, y, 32, 32);
+            if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x, y + 32, 32, 32);
+        }
+        static void DrawBitmap64x64From4_32x32(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0) {
             /*
              * Topleft: 4
              * TopRight: 3
@@ -204,152 +270,105 @@ namespace OpenTibiaUnity
              * BottomRight: 1
             */
             
-            using (Graphics gfx = Graphics.FromImage(bitmap)) {
-                if (bitmapArray[3] != null) gfx.DrawImage(bitmapArray[3], 0, 0, 32, 32);
-                if (bitmapArray[2] != null) gfx.DrawImage(bitmapArray[2], 32, 0, 32, 32);
-                if (bitmapArray[1] != null) gfx.DrawImage(bitmapArray[1], 0, 32, 32, 32);
-                if (bitmapArray[0] != null) gfx.DrawImage(bitmapArray[0], 32, 32, 32, 32);
-            }
-
-            return bitmap;
-        }
-        static Bitmap GenerateBitmap64x32From2_32x32(Bitmap[] bitmapArray) {
-            Bitmap bitmap = new Bitmap(64, 32);
-            /*
-             * Left: 2
-             * Right: 1
-            */
-
-            using (Graphics gfx = Graphics.FromImage(bitmap)) {
-                if (bitmapArray[1] != null) gfx.DrawImage(bitmapArray[1], 0, 0, 32, 32);
-                if (bitmapArray[0] != null) gfx.DrawImage(bitmapArray[0], 32, 0, 32, 32);
-            }
-
-            return bitmap;
-        }
-        static Bitmap GenerateBitmap32x64From2_32x32(Bitmap[] bitmapArray) {
-            Bitmap bitmap = new Bitmap(32, 64);
-            /*
-             * Top: 2
-             * Bottom: 1
-            */
-
-            using (Graphics gfx = Graphics.FromImage(bitmap)) {
-                if (bitmapArray[1] != null) gfx.DrawImage(bitmapArray[1], 0, 0, 32, 32);
-                if (bitmapArray[0] != null) gfx.DrawImage(bitmapArray[0], 0, 32, 32, 32);
-            }
-
-            return bitmap;
+            if (bitmaps[3] != null) gfx.DrawImage(bitmaps[3], x, y, 32, 32);
+            if (bitmaps[2] != null) gfx.DrawImage(bitmaps[2], x + 32, y, 32, 32);
+            if (bitmaps[1] != null) gfx.DrawImage(bitmaps[1], x, y + 32, 32, 32);
+            if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x + 32, y + 32, 32, 32);
         }
 
-        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
-            GenerateBitmapDelegate gen;
-            int layer = 0;
-            int spritetype = 1;
-            if (dX == 32 && dY == 32) {
-                gen = delegate (Bitmap[] f) { return f[0] != null ? f[0] : new Bitmap(32, 32); };
-                layer = 1;
-            } else if (dX == 32 && dY == 64) {
-                gen = GenerateBitmap32x64From2_32x32;
-                layer = 2;
-                spritetype = 2;
-            } else if (dX == 64 && dY == 32) {
-                gen = GenerateBitmap64x32From2_32x32;
-                layer = 2;
-                spritetype = 3;
-            } else {
-                gen = GenerateBitmap64x64From4_32x32;
-                layer = 4;
-                spritetype = 4;
-            }
-            
-            int totalSize = SEGMENT_SIZE * SEGMENT_SIZE;
+        static void InternalSaveStaticBitmaps(RepeatedField<uint> sprites, DrawBitmapsDelegate drawFunc, int layers, int spriteType, int localStart, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
             int singleSize = dX * dY;
 
-            int amountInBitmap = totalSize / (32 * 32); // Any sprite is 32x32, so the total bitmaps should rely on that 
-            int totalBitmaps = (int)Math.Ceiling((double)sprites.Count / amountInBitmap);
-            if (totalBitmaps == 0) {
-                return;
-            }
-            
-            Bitmap currentBitmap = new Bitmap(SEGMENT_SIZE, SEGMENT_SIZE);
-            Graphics gfx = Graphics.FromImage(currentBitmap);
+            AsyncGraphics gfx = new AsyncGraphics(new Bitmap(SEGMENT_DIMENTION, SEGMENT_DIMENTION));
+            string filename;
 
             int x = 0, y = 0, z = 0;
             for (int i = 0; i < sprites.Count;) {
-                Bitmap[] malform_bitmaps = new Bitmap[layer];
-                for (int m = 0; m < layer; m++) {
-                    if (i + m >= sprites.Count) {
+                Bitmap[] smallBitmaps = new Bitmap[layers];
+                for (int m = 0; m < layers; m++) {
+                    if (i + m >= sprites.Count)
                         break;
-                    }
 
-                    malform_bitmaps[m] = sprParser.GetSprite(sprites[i + m]);
+                    smallBitmaps[m] = sprParser.GetSprite(sprites[i + m]);
                 }
 
-                Bitmap generated = gen(malform_bitmaps);
-                if (y >= SEGMENT_SIZE) {
-                    string filename = string.Format("sprites/sprites-{0}-{1}.png", start, start + (totalSize / singleSize) - 1);
+                if (y >= SEGMENT_DIMENTION) {
+                    filename = string.Format("sprites-{0}-{1}.png", localStart, localStart + (BITMAP_SIZE / singleSize) - 1);
+                    tasks.Add(gfx.SaveAndDispose(Path.Combine("sprites", filename)));
                     
-                    currentBitmap.Save(filename);
-                    currentBitmap.Dispose();
-                    gfx.Dispose();
+                    jsonTokens.Add(new SpritesToken() {
+                        file = filename,
+                        spritetype = spriteType,
+                        firstspriteid = localStart,
+                        lastspriteid = localStart + (BITMAP_SIZE / singleSize) - 1
+                    });
 
-                    JObject obj = new JObject();
-                    obj.Add("type", "sprite");
-                    obj.Add("file", filename);
-                    obj.Add("spritetype", spritetype);
-                    obj.Add("firstspriteid", start);
-                    obj.Add("lastspriteid", start + (totalSize / singleSize) - 1);
+                    localStart += BITMAP_SIZE / singleSize;
 
-                    catalogJson.Add(obj);
-                    
-                    start += (totalSize / singleSize);
-
-                    currentBitmap = new Bitmap(SEGMENT_SIZE, SEGMENT_SIZE);
-                    gfx = Graphics.FromImage(currentBitmap);
+                    gfx = new AsyncGraphics(new Bitmap(SEGMENT_DIMENTION, SEGMENT_DIMENTION));
                     x = y = z = 0;
                 }
 
-                try {
-                    gfx.DrawImage(generated, x, y, dX, dY);
-                    generated.Dispose();
-                } catch (Exception) {
-                }
+                var tmpSmallBitmaps = smallBitmaps;
+                drawFunc(gfx, smallBitmaps, x, y);
+                tasks.Add(gfx.DisposeOnDone(smallBitmaps));
 
                 x += dX;
-                if (x >= SEGMENT_SIZE) {
+                if (x >= SEGMENT_DIMENTION) {
                     y += dY;
                     x = 0;
                 }
-                
-                if (i == sprites.Count) {
-                    break;
-                }
 
-                i = Math.Min(i + layer, sprites.Count);
+                if (i == sprites.Count)
+                    break;
+
+                i = Math.Min(i + layers, sprites.Count);
                 z++;
             }
+            
+            // save the last gfx
+            int end = localStart + z;
+            filename = string.Format("sprites-{0}-{1}.png", localStart, end - 1);
+            tasks.Add(gfx.SaveAndDispose(Path.Combine("sprites", filename)));
+            
+            jsonTokens.Add(new SpritesToken() {
+                file = filename,
+                spritetype = spriteType,
+                firstspriteid = localStart,
+                lastspriteid = end - 1
+            });
+        }
 
-            if (currentBitmap != null) {
-                int end = start + z;
-                string filename = string.Format("sprites/sprites-{0}-{1}.png", start, end - 1);
-
-                currentBitmap.Save(filename);
-                currentBitmap.Dispose();
-                gfx.Dispose();
-
-                JObject obj = new JObject();
-                obj.Add("type", "sprite");
-                obj.Add("file", filename);
-                obj.Add("spritetype", spritetype);
-                obj.Add("firstspriteid", start);
-                obj.Add("lastspriteid", end - 1);
-                
-                start = end;
-                catalogJson.Add(obj);
+        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
+            DrawBitmapsDelegate drawFunc;
+            int layers = 0;
+            int spritetype = 1;
+            if (dX == 32 && dY == 32) {
+                drawFunc = DrawBitmap32x32From1_32x32;
+                layers = 1;
+            } else if (dX == 32 && dY == 64) {
+                drawFunc = DrawBitmap32x64From2_32x32;
+                layers = 2;
+                spritetype = 2;
+            } else if (dX == 64 && dY == 32) {
+                drawFunc = DrawBitmap64x32From2_32x32;
+                layers = 2;
+                spritetype = 3;
+            } else {
+                drawFunc = DrawBitmap64x64From4_32x32;
+                layers = 4;
+                spritetype = 4;
             }
+            
+            int amountInBitmap = BITMAP_SIZE / (32 * 32);
+            int totalBitmaps = (int)Math.Ceiling((double)sprites.Count / amountInBitmap);
+            if (totalBitmaps == 0)
+                return;
 
-            GC.Collect();
+            int localStart = start;
+            start += sprites.Count / layers;
+
+            tasks.Add(Task.Run(() => InternalSaveStaticBitmaps(sprites, drawFunc, layers, spritetype, localStart, sprParser, dX, dY)));
         }
 
         static void DeployNewSprites(uint id, FrameGroup frameGroup, int layer) {
@@ -417,77 +436,109 @@ namespace OpenTibiaUnity
             foreach (var a in frameGroups[3]) DeployNewSprites(ids[3][h++], a, 4);
         }
 
-        static void GenerateEverything() {
-            // Generating New appearances
-            Appearances appearances0001 = GenerateAppearances001();
+        static void SaveSprites(RepeatedField<Appearance> appearances, ref int start, Core.Sprites.ContentSprites sprParser) {
+            RepeatedField<uint>[] sortedFrameGroups = new RepeatedField<uint>[4];
+            for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
+            DeploySprites(appearances, ref sortedFrameGroups);
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
+        }
 
-            // Creating the sprites folder to save files in.
+        static void GenerateEverything(string datfile, string sprfile, int clientVersion, bool useAlpha) {
+            // generating new appearances
+            Appearances appearances = GenerateAppearances(datfile, clientVersion);
+
+            // creating the sprites folder to save files in.
             Directory.CreateDirectory("sprites");
 
-            // Loading tibia.spr into chunks
+            // loading tibia.spr into chunks
             Core.Sprites.ContentSprites sprParser;
             try {
-                var bytes = File.ReadAllBytes("tibia.spr");
-                sprParser = new Core.Sprites.ContentSprites(bytes);
+                var bytes = File.ReadAllBytes(sprfile);
+                sprParser = new Core.Sprites.ContentSprites(bytes, useAlpha);
                 sprParser.Parse();
             } catch (Exception e) {
-                Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message + '\n' + e.StackTrace);
                 Environment.Exit(0);
                 return;
             }
 
             int start = 0;
-            RepeatedField<uint>[] sortedFrameGroups = new RepeatedField<uint>[4];
+            SaveSprites(appearances.Outfits, ref start, sprParser);
+            SaveSprites(appearances.Effects, ref start, sprParser);
+            SaveSprites(appearances.Missles, ref start, sprParser);
+            SaveSprites(appearances.Objects, ref start, sprParser);
 
-            // grouping different sizes into different textures
-            for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            DeploySprites(appearances0001.Outfits, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
-
-            for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            DeploySprites(appearances0001.Effects, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
-
-            for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            DeploySprites(appearances0001.Missles, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
-
-            for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            DeploySprites(appearances0001.Objects, ref sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
+            Task.WaitAll(tasks.ToArray());
 
             // saving appearances.dat (with the respective version)
-            using (FileStream file1 = File.Create("appearances001.dat")) {
-                appearances0001.WriteTo(file1);
+            using (FileStream file = File.Create("appearances.dat")) {
+                appearances.WriteTo(file);
             }
+            
+            // saving spritesheets information (catalog-content)
+            using (FileStream file = File.Create("catalog-content.json")) {
+                jsonTokens.Sort(ITokenItemSort);
+                foreach (var token in jsonTokens) {
+                    catalogJson.Add(token.GetJObject());
+                }
 
-            // This is a helper, by using some sort of data structure (i.e interval tree)
-            // you can load any sprite quickly at runtime
-            using (FileStream file2 = File.Create("catalog-content.json")) {
                 string str = catalogJson.ToString();
-                file2.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
+                file.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
             }
         }
 
+        private static int ITokenItemSort(ITokenItem x, ITokenItem y) {
+            if (x is AppearancesToken)
+                return -1;
+            else if (y is AppearancesToken)
+                return 1;
+
+            SpritesToken a = (SpritesToken)x;
+            SpritesToken b = (SpritesToken)y;
+            return a.firstspriteid.CompareTo(b.firstspriteid);
+        }
+
         static void Main(string[] args) {
-            try {
-                GenerateEverything();
-            } catch (OutOfMemoryException e) {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+            // todo: this class must be cleaned
+            /* todo: introduce semaphores to limit the maximum concurrent threads
+             * to avoid intense cpu usage */ 
+
+            string datFile = null;
+            string sprFile = null;
+            int clientVersion = -1;
+            bool useAlpha = false;
+            foreach (var arg in args) {
+                if (arg.StartsWith("--dat=")) {
+                    datFile = arg.Substring(6);
+                    Console.WriteLine("Dat: " + datFile);
+                } else if (arg.StartsWith("--spr=")) {
+                    sprFile = arg.Substring(6);
+                    Console.WriteLine("Spr: " + sprFile);
+                } else if (arg.StartsWith("--version=")) {
+                    Console.WriteLine("Version: " + arg.Substring(10));
+                    clientVersion = int.Parse(arg.Substring(10));
+                } else if (arg.StartsWith("--alpha=")) {
+                    var boolstr = arg.Substring(8).ToLower();
+                    useAlpha = boolstr == "y" || boolstr == "yes" || boolstr == "true" || boolstr == "1";
+                }
             }
+
+            if (datFile == null || sprFile == null || clientVersion == -1) {
+                Console.WriteLine("Invalid parameters, you should add sprites, dat files & client version.");
+                return;
+            }
+
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+            GenerateEverything(datFile, sprFile, clientVersion, useAlpha);
+
+            watch.Stop();
+            
+            double seconds = watch.ElapsedMilliseconds / (double)1000;
+            Console.WriteLine("Time elapsed: " + seconds + " seconds.");
         }
     }
 }
