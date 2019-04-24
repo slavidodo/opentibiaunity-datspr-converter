@@ -40,39 +40,42 @@ message AppearanceFlags {
 	bool top = 4;
 	bool container = 5;
 	bool stackable = 6;
-	bool use = 7;
-	bool forceUse = 8;
-	bool multiUse = 9;
-	Writable writable = 10;
-	Writable writableOnce = 11;
-	bool fluidContainer = 12;
-	bool splash = 13;
-	bool unpassable = 14;
-	bool unmoveable = 15;
-	bool unsight = 16;
-	bool blockPath = 17;
-	bool noMoveAnimation = 18;
-	bool pickupable = 19;
-	bool hangable = 20;
-	Hook hook = 21;
-	bool rotateable = 22;
-	LightInfo light = 23;
-	bool dontHide = 24;
-	bool translucent = 25;
-	Displacement displacement = 26;
-	Elevation elevation = 27;
-	bool lyingCorpse = 28;
-	bool animateAlways = 29;
-	MiniMap minimap = 30;
-	LensHelp lensHelp = 31;
-	bool fullGround = 32;
-	bool Look = 33;
-	Clothes cloth = 34;
-	MarketInfo market = 35;
-	DefaultAction defaultAction = 36;
-	bool wrapable = 37;
-	bool unWrapable = 38;
-	bool topEffect = 39;
+	bool forceUse = 7;
+	bool multiUse = 8;
+	Writable writable = 9;
+	Writable writableOnce = 10;
+	bool fluidContainer = 11;
+	bool splash = 12;
+	bool unpassable = 13;
+	bool unmoveable = 14;
+	bool unsight = 15;
+	bool blockPath = 16;
+	bool pickupable = 17;
+	bool hangable = 18;
+	Hook hook = 19;
+	bool rotateable = 20;
+	LightInfo light = 21;
+	bool dontHide = 22;
+	bool translucent = 23;
+	Offset offset = 24;
+	Elevation elevation = 25;
+	bool lyingCorpse = 26;
+	bool animateAlways = 27;
+	MiniMap minimap = 28;
+	LensHelp lensHelp = 29;
+	bool fullGround = 30;
+	bool Look = 31;
+	Clothes cloth = 32;
+	MarketInfo market = 33;
+	DefaultAction defaultAction = 34;
+	bool use = 35;
+	bool wrapable = 36;
+	bool unWrapable = 37;
+	bool topEffect = 38;
+	
+	bool floorChange = 252;
+	bool noMoveAnimation = 253;
+	bool charges = 254;
 }
 
 message Ground {
@@ -96,7 +99,7 @@ message MiniMap {
 	uint32 color = 1;
 }
 
-message Displacement {
+message Offset {
 	uint32 x = 1;
 	uint32 y = 2;
 }

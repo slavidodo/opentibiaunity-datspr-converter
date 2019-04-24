@@ -47,7 +47,7 @@ namespace OpenTibiaUnity.Core.Sprites
                 
                 ThingTypeDictionaries[category] = new ThingTypesDict();
                 for (ushort id = firstId; id < counts[category]; id++) {
-                    ThingType thingType = ThingType.Serialize(id, (ThingCategory)category, ref m_BinaryReader);
+                    ThingType thingType = ThingType.Unserialize(id, (ThingCategory)category, m_BinaryReader, m_ClientVersion);
                     ThingTypeDictionaries[category][id] = thingType;
                 }
             }

@@ -71,16 +71,25 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>external\UnityEngine.AssetBundleModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="OpenTibiaUnity\AsyncGraphics.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes1056.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes730.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes750.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes772.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes854.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes986.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Metaflags\AttributesUniform.cs" />
     <Compile Include="OpenTibiaUnity\Core\Net\NetworkMessage.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ContentData.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ContentSprites.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Sprites\DatAttributes.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\FrameGroup.cs" />
     <Compile Include="OpenTibiaUnity\Core\Sprites\ThingType.cs" />
-    <Compile Include="OpenTibiaUnity\Protobuf\Appearances\Appearances.cs" />
+    <Compile Include="OpenTibiaUnity\Proto\Appearances\Appearances.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -88,5 +97,6 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 
 namespace OpenTibiaUnity.Core.Sprites
 {
@@ -16,9 +17,9 @@ namespace OpenTibiaUnity.Core.Sprites
             m_UseAlpha = alpha;
         }
 
-        public void Parse() {
+        public void Parse(int clientVersion) {
             Signature = m_BinaryReader.GetU32();
-            SpritesCount = m_BinaryReader.GetU32();
+            SpritesCount = clientVersion >= 960 ? m_BinaryReader.GetU32() : m_BinaryReader.GetU16();
             SpritesOffset = m_BinaryReader.Tell();
         }
 
@@ -28,12 +29,14 @@ namespace OpenTibiaUnity.Core.Sprites
         }
 
         private Bitmap RawGetSprite(uint id) {
+            if (id == 0 || m_BinaryReader == null)
+                return null;
+            
             m_BinaryReader.Seek((int)((id-1) * 4) + SpritesOffset);
 
             uint spriteAddress = m_BinaryReader.GetU32();
-            if (spriteAddress == 0) {
+            if (spriteAddress == 0)
                 return null;
-            }
 
             m_BinaryReader.Seek((int)spriteAddress);
             m_BinaryReader.SkipBytes(3); // color values

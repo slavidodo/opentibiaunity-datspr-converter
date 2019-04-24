@@ -8,12 +8,12 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.Collections;
 using Newtonsoft.Json.Linq;
+using OpenTibiaUnity.Core.Metaflags;
 using OpenTibiaUnity.Proto.Appearances;
 
 namespace OpenTibiaUnity
 {
     // This is taken from the the OpenOpenTibiaUnity project
-    using DatAttributes = Core.Sprites.DatAttributes;
 
     interface ITokenItem
     {
@@ -82,58 +82,58 @@ namespace OpenTibiaUnity
             }
 
             // Flags
-            if (thingType.HasAttribute(DatAttributes.Ground)) appearance.Flags.Ground = new Ground() { Speed = (ushort)thingType.Attributes[DatAttributes.Ground] };
-            if (thingType.HasAttribute(DatAttributes.Writable)) appearance.Flags.Writable = new Writable() { Length = (ushort)thingType.Attributes[DatAttributes.Writable] };
-            if (thingType.HasAttribute(DatAttributes.WritableOnce)) appearance.Flags.WritableOnce = new Writable() { Length = (ushort)thingType.Attributes[DatAttributes.WritableOnce] };
-            if (thingType.HasAttribute(DatAttributes.MinimapColor)) appearance.Flags.Minimap = new MiniMap() { Color = (ushort)thingType.Attributes[DatAttributes.MinimapColor] };
-            if (thingType.HasAttribute(DatAttributes.Elevation)) appearance.Flags.Elevation = new Elevation() { Elevation_ = (ushort)thingType.Attributes[DatAttributes.Elevation] };
-            if (thingType.HasAttribute(DatAttributes.LensHelp)) appearance.Flags.LensHelp = new LensHelp() { Id = (ushort)thingType.Attributes[DatAttributes.LensHelp] };
-            if (thingType.HasAttribute(DatAttributes.Cloth)) appearance.Flags.Cloth = new Clothes() { Slot = (ushort)thingType.Attributes[DatAttributes.Cloth] };
+            if (thingType.HasAttribute(AttributesUniform.Ground)) appearance.Flags.Ground = new Ground() { Speed = (ushort)thingType.Attributes[AttributesUniform.Ground] };
+            if (thingType.HasAttribute(AttributesUniform.Writable)) appearance.Flags.Writable = new Writable() { Length = (ushort)thingType.Attributes[AttributesUniform.Writable] };
+            if (thingType.HasAttribute(AttributesUniform.WritableOnce)) appearance.Flags.WritableOnce = new Writable() { Length = (ushort)thingType.Attributes[AttributesUniform.WritableOnce] };
+            if (thingType.HasAttribute(AttributesUniform.MinimapColor)) appearance.Flags.Minimap = new MiniMap() { Color = (ushort)thingType.Attributes[AttributesUniform.MinimapColor] };
+            if (thingType.HasAttribute(AttributesUniform.Elevation)) appearance.Flags.Elevation = new Elevation() { Elevation_ = (ushort)thingType.Attributes[AttributesUniform.Elevation] };
+            if (thingType.HasAttribute(AttributesUniform.LensHelp)) appearance.Flags.LensHelp = new LensHelp() { Id = (ushort)thingType.Attributes[AttributesUniform.LensHelp] };
+            if (thingType.HasAttribute(AttributesUniform.Cloth)) appearance.Flags.Cloth = new Clothes() { Slot = (ushort)thingType.Attributes[AttributesUniform.Cloth] };
 
             // default action
-            if (thingType.HasAttribute(DatAttributes.DefaultAction)) {
+            if (thingType.HasAttribute(AttributesUniform.DefaultAction)) {
                 var defaultAction = new DefaultAction();
-                var oldDefaultActionValue = (ushort)thingType.Attributes[DatAttributes.DefaultAction];
+                var oldDefaultActionValue = (ushort)thingType.Attributes[AttributesUniform.DefaultAction];
                 if (oldDefaultActionValue > 4)
                     Console.WriteLine("Invalid default action: " + oldDefaultActionValue + " for item id: " + thingType.ID);
                 appearance.Flags.DefaultAction = new DefaultAction() { Action = (PlayerAction)oldDefaultActionValue };
             }
 
-            if (thingType.HasAttribute(DatAttributes.GroundBorder)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[DatAttributes.GroundBorder];
-            if (thingType.HasAttribute(DatAttributes.OnBottom)) appearance.Flags.Bottom = (bool)thingType.Attributes[DatAttributes.OnBottom];
-            if (thingType.HasAttribute(DatAttributes.OnTop)) appearance.Flags.Top = (bool)thingType.Attributes[DatAttributes.OnTop];
-            if (thingType.HasAttribute(DatAttributes.Container)) appearance.Flags.Container = (bool)thingType.Attributes[DatAttributes.Container];
-            if (thingType.HasAttribute(DatAttributes.Stackable)) appearance.Flags.Stackable = (bool)thingType.Attributes[DatAttributes.Stackable];
-            if (thingType.HasAttribute(DatAttributes.Usable)) appearance.Flags.Use = (bool)thingType.Attributes[DatAttributes.Usable];
-            if (thingType.HasAttribute(DatAttributes.ForceUse)) appearance.Flags.ForceUse = (bool)thingType.Attributes[DatAttributes.ForceUse];
-            if (thingType.HasAttribute(DatAttributes.MultiUse)) appearance.Flags.MultiUse = (bool)thingType.Attributes[DatAttributes.MultiUse];
-            if (thingType.HasAttribute(DatAttributes.FluidContainer)) appearance.Flags.FluidContainer = (bool)thingType.Attributes[DatAttributes.FluidContainer];
-            if (thingType.HasAttribute(DatAttributes.Splash)) appearance.Flags.Splash = (bool)thingType.Attributes[DatAttributes.Splash];
-            if (thingType.HasAttribute(DatAttributes.NotWalkable)) appearance.Flags.Unpassable = (bool)thingType.Attributes[DatAttributes.NotWalkable];
-            if (thingType.HasAttribute(DatAttributes.NotMoveable)) appearance.Flags.Unmoveable = (bool)thingType.Attributes[DatAttributes.NotMoveable];
-            if (thingType.HasAttribute(DatAttributes.BlockProjectile)) appearance.Flags.Unsight = (bool)thingType.Attributes[DatAttributes.BlockProjectile];
-            if (thingType.HasAttribute(DatAttributes.NotPathable)) appearance.Flags.BlockPath = (bool)thingType.Attributes[DatAttributes.NotPathable];
-            if (thingType.HasAttribute(DatAttributes.NoMoveAnimation)) appearance.Flags.NoMoveAnimation = (bool)thingType.Attributes[DatAttributes.NoMoveAnimation];
-            if (thingType.HasAttribute(DatAttributes.Pickupable)) appearance.Flags.Pickupable = (bool)thingType.Attributes[DatAttributes.Pickupable];
-            if (thingType.HasAttribute(DatAttributes.Hangable)) appearance.Flags.Hangable = (bool)thingType.Attributes[DatAttributes.Hangable];
+            if (thingType.HasAttribute(AttributesUniform.GroundBorder)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[AttributesUniform.GroundBorder];
+            if (thingType.HasAttribute(AttributesUniform.Bottom)) appearance.Flags.Bottom = (bool)thingType.Attributes[AttributesUniform.Bottom];
+            if (thingType.HasAttribute(AttributesUniform.Top)) appearance.Flags.Top = (bool)thingType.Attributes[AttributesUniform.Top];
+            if (thingType.HasAttribute(AttributesUniform.Container)) appearance.Flags.Container = (bool)thingType.Attributes[AttributesUniform.Container];
+            if (thingType.HasAttribute(AttributesUniform.Stackable)) appearance.Flags.Stackable = (bool)thingType.Attributes[AttributesUniform.Stackable];
+            if (thingType.HasAttribute(AttributesUniform.Use)) appearance.Flags.Use = (bool)thingType.Attributes[AttributesUniform.Use];
+            if (thingType.HasAttribute(AttributesUniform.ForceUse)) appearance.Flags.ForceUse = (bool)thingType.Attributes[AttributesUniform.ForceUse];
+            if (thingType.HasAttribute(AttributesUniform.MultiUse)) appearance.Flags.MultiUse = (bool)thingType.Attributes[AttributesUniform.MultiUse];
+            if (thingType.HasAttribute(AttributesUniform.FluidContainer)) appearance.Flags.FluidContainer = (bool)thingType.Attributes[AttributesUniform.FluidContainer];
+            if (thingType.HasAttribute(AttributesUniform.Splash)) appearance.Flags.Splash = (bool)thingType.Attributes[AttributesUniform.Splash];
+            if (thingType.HasAttribute(AttributesUniform.Unpassable)) appearance.Flags.Unpassable = (bool)thingType.Attributes[AttributesUniform.Unpassable];
+            if (thingType.HasAttribute(AttributesUniform.Unmoveable)) appearance.Flags.Unmoveable = (bool)thingType.Attributes[AttributesUniform.Unmoveable];
+            if (thingType.HasAttribute(AttributesUniform.Unsight)) appearance.Flags.Unsight = (bool)thingType.Attributes[AttributesUniform.Unsight];
+            if (thingType.HasAttribute(AttributesUniform.BlockPath)) appearance.Flags.BlockPath = (bool)thingType.Attributes[AttributesUniform.BlockPath];
+            if (thingType.HasAttribute(AttributesUniform.NoMoveAnimation)) appearance.Flags.NoMoveAnimation = (bool)thingType.Attributes[AttributesUniform.NoMoveAnimation];
+            if (thingType.HasAttribute(AttributesUniform.Pickupable)) appearance.Flags.Pickupable = (bool)thingType.Attributes[AttributesUniform.Pickupable];
+            if (thingType.HasAttribute(AttributesUniform.Hangable)) appearance.Flags.Hangable = (bool)thingType.Attributes[AttributesUniform.Hangable];
 
             // can have only one hook //
-            if (thingType.HasAttribute(DatAttributes.HookSouth)) appearance.Flags.Hook = new Hook() { Type = HookType.South };
-            else if (thingType.HasAttribute(DatAttributes.HookEast)) appearance.Flags.Hook = new Hook() { Type = HookType.East };
+            if (thingType.HasAttribute(AttributesUniform.HookSouth)) appearance.Flags.Hook = new Hook() { Type = HookType.South };
+            else if (thingType.HasAttribute(AttributesUniform.HookEast)) appearance.Flags.Hook = new Hook() { Type = HookType.East };
 
-            if (thingType.HasAttribute(DatAttributes.Rotateable)) appearance.Flags.Rotateable = (bool)thingType.Attributes[DatAttributes.Rotateable];
-            if (thingType.HasAttribute(DatAttributes.DontHide)) appearance.Flags.DontHide = (bool)thingType.Attributes[DatAttributes.DontHide];
-            if (thingType.HasAttribute(DatAttributes.Translucent)) appearance.Flags.Translucent = (bool)thingType.Attributes[DatAttributes.Translucent];
-            if (thingType.HasAttribute(DatAttributes.LyingCorpse)) appearance.Flags.LyingCorpse = (bool)thingType.Attributes[DatAttributes.LyingCorpse];
-            if (thingType.HasAttribute(DatAttributes.AnimateAlways)) appearance.Flags.AnimateAlways = (bool)thingType.Attributes[DatAttributes.AnimateAlways];
-            if (thingType.HasAttribute(DatAttributes.FullGround)) appearance.Flags.FullGround = (bool)thingType.Attributes[DatAttributes.FullGround];
-            if (thingType.HasAttribute(DatAttributes.Look)) appearance.Flags.Look = (bool)thingType.Attributes[DatAttributes.Look];
-            if (thingType.HasAttribute(DatAttributes.Wrapable)) appearance.Flags.Wrapable = (bool)thingType.Attributes[DatAttributes.Wrapable];
-            if (thingType.HasAttribute(DatAttributes.Unwrapable)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[DatAttributes.Unwrapable];
-            if (thingType.HasAttribute(DatAttributes.TopEffect)) appearance.Flags.TopEffect = (bool)thingType.Attributes[DatAttributes.TopEffect];
+            if (thingType.HasAttribute(AttributesUniform.Rotateable)) appearance.Flags.Rotateable = (bool)thingType.Attributes[AttributesUniform.Rotateable];
+            if (thingType.HasAttribute(AttributesUniform.DontHide)) appearance.Flags.DontHide = (bool)thingType.Attributes[AttributesUniform.DontHide];
+            if (thingType.HasAttribute(AttributesUniform.Translucent)) appearance.Flags.Translucent = (bool)thingType.Attributes[AttributesUniform.Translucent];
+            if (thingType.HasAttribute(AttributesUniform.LyingCorpse)) appearance.Flags.LyingCorpse = (bool)thingType.Attributes[AttributesUniform.LyingCorpse];
+            if (thingType.HasAttribute(AttributesUniform.AnimateAlways)) appearance.Flags.AnimateAlways = (bool)thingType.Attributes[AttributesUniform.AnimateAlways];
+            if (thingType.HasAttribute(AttributesUniform.FullGround)) appearance.Flags.FullGround = (bool)thingType.Attributes[AttributesUniform.FullGround];
+            if (thingType.HasAttribute(AttributesUniform.Look)) appearance.Flags.Look = (bool)thingType.Attributes[AttributesUniform.Look];
+            if (thingType.HasAttribute(AttributesUniform.Wrapable)) appearance.Flags.Wrapable = (bool)thingType.Attributes[AttributesUniform.Wrapable];
+            if (thingType.HasAttribute(AttributesUniform.Unwrapable)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[AttributesUniform.Unwrapable];
+            if (thingType.HasAttribute(AttributesUniform.TopEffect)) appearance.Flags.TopEffect = (bool)thingType.Attributes[AttributesUniform.TopEffect];
 
-            if (thingType.HasAttribute(DatAttributes.Light)) {
-                var lightInfo = (Core.Sprites.LightInfo)thingType.Attributes[DatAttributes.Light];
+            if (thingType.HasAttribute(AttributesUniform.Light)) {
+                var lightInfo = (Core.Sprites.LightInfo)thingType.Attributes[AttributesUniform.Light];
 
                 appearance.Flags.Light = new LightInfo() {
                     Intensity = lightInfo.intensity,
@@ -141,24 +141,24 @@ namespace OpenTibiaUnity
                 };
             }
 
-            if (thingType.HasAttribute(DatAttributes.Displacement)) {
-                var displacement = (Core.Sprites.Vector2Int)thingType.Attributes[DatAttributes.Displacement];
+            if (thingType.HasAttribute(AttributesUniform.Offset)) {
+                var displacement = (Core.Sprites.Vector2Int)thingType.Attributes[AttributesUniform.Offset];
                 appearance.Flags.Displacement = new Displacement() {
                     X = (uint)displacement.x,
                     Y = (uint)displacement.y,
                 };
             }
 
-            if (thingType.HasAttribute(DatAttributes.Market)) {
-                var Market = (Core.Sprites.MarketData)thingType.Attributes[DatAttributes.Market];
+            if (thingType.HasAttribute(AttributesUniform.Market)) {
+                var Market = (Core.Sprites.MarketData)thingType.Attributes[AttributesUniform.Market];
 
                 appearance.Flags.Market = new MarketInfo() {
                     Category = (uint)Market.category,
                     TradeAs = Market.tradeAs,
                     ShowAs = Market.showAs,
                     Name = Market.name,
-                    RestrictVocation = Market.restrictVocation,
-                    RequiredLevel = Market.requiredLevel,
+                    RestrictVocation = Market.restrictProfession,
+                    RequiredLevel = Market.restrictLevel,
                 };
             }
 
@@ -384,7 +384,7 @@ namespace OpenTibiaUnity
             frameGroup.Sprites.AddRange(s);
         }
 
-        static void DeploySprites(RepeatedField<Appearance> appearances, ref RepeatedField<uint>[] sortedFrameGroups) {
+        static void DeploySprites(RepeatedField<Appearance> appearances, RepeatedField<uint>[] sortedFrameGroups) {
             List<FrameGroup>[] frameGroups = new List<FrameGroup>[4];
             frameGroups[0] = new List<FrameGroup>();
             frameGroups[1] = new List<FrameGroup>();
@@ -439,7 +439,7 @@ namespace OpenTibiaUnity
         static void SaveSprites(RepeatedField<Appearance> appearances, ref int start, Core.Sprites.ContentSprites sprParser) {
             RepeatedField<uint>[] sortedFrameGroups = new RepeatedField<uint>[4];
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
-            DeploySprites(appearances, ref sortedFrameGroups);
+            DeploySprites(appearances, sortedFrameGroups);
             SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
             SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
             SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
@@ -458,7 +458,7 @@ namespace OpenTibiaUnity
             try {
                 var bytes = File.ReadAllBytes(sprfile);
                 sprParser = new Core.Sprites.ContentSprites(bytes, useAlpha);
-                sprParser.Parse();
+                sprParser.Parse(clientVersion);
             } catch (Exception e) {
                 Console.WriteLine(e.Message + '\n' + e.StackTrace);
                 Environment.Exit(0);

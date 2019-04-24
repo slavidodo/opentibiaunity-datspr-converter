@@ -20,7 +20,7 @@ namespace OpenTibiaUnity.Core.Net
         }
 
         public byte GetU8() {
-            if (!CanRead(1)) ThrowCantRead();
+            if (!CanRead(1)) ThrowCantRead(1);
             return m_Buffer[m_Position++];
         }
 
@@ -32,7 +32,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public ushort GetU16() {
             int size = sizeof(ushort);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             ushort res = BitConverter.ToUInt16(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -46,7 +46,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public uint GetU32() {
             int size = sizeof(uint);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             uint res = BitConverter.ToUInt32(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -60,7 +60,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public ulong GetU64() {
             int size = sizeof(ulong);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             ulong res = BitConverter.ToUInt64(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -73,7 +73,7 @@ namespace OpenTibiaUnity.Core.Net
         }
 
         public sbyte GetS8() {
-            if (!CanRead(1)) ThrowCantRead();
+            if (!CanRead(1)) ThrowCantRead(1);
             return (sbyte)m_Buffer[m_Position++];
         }
 
@@ -85,7 +85,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public short GetS16() {
             int size = sizeof(short);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             short res = BitConverter.ToInt16(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -99,7 +99,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public int GetS32() {
             int size = sizeof(int);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             int res = BitConverter.ToInt32(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -113,7 +113,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public long GetS64() {
             int size = sizeof(long);
-            if (!CanRead(size)) ThrowCantRead();
+            if (!CanRead(size)) ThrowCantRead(size);
             long res = BitConverter.ToInt64(m_Buffer, (int)m_Position);
             m_Position += size;
             return res;
@@ -127,6 +127,7 @@ namespace OpenTibiaUnity.Core.Net
 
         public string GetString() {
             ushort length = GetU16();
+            if (!CanRead(length)) ThrowCantRead(length);
             byte[] str = new byte[length];
 
             Array.Copy(m_Buffer, m_Position, str, 0, length);
@@ -136,20 +137,20 @@ namespace OpenTibiaUnity.Core.Net
         }
 
         public void SkipBytes(int skip) {
-            if (!CanRead(1)) ThrowCantRead();
+            if (!CanRead(skip)) ThrowCantRead(skip);
             m_Position += skip;
         }
-
-        public void ThrowCantRead() {
-            throw new Exception("Trying to read after EOF has reached.");
+        
+        public void ThrowCantRead(int size) {
+            throw new Exception(string.Format("Trying to read after EOF has reached. (size: {0}, unread: {1}, buffer: {2}, position: {3})", size, GetUnreadSize(), GetBufferLength(), m_Position));
         }
 
         public bool CanRead(int n) {
             return m_Buffer.Length >= m_Position + n;
         }
 
-        public int GetUnreadSize() {
-            return GetBufferLength() - GetReadPos();
+        public uint GetUnreadSize() {
+            return (uint)(GetBufferLength() - GetReadPos());
         }
 
         public void SetBuffer(byte[] buffer) {
@@ -185,6 +186,8 @@ namespace OpenTibiaUnity.Core.Net
         }
 
         public void Seek(int position) {
+            if (position >= GetBufferLength())
+                throw new ArgumentException("Buffer: seek failed");
             m_Position = position;
         }
 
