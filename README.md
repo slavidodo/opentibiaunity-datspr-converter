@@ -15,3 +15,16 @@ Install-Package Newtonsoft.Json -Version 11.0.2
 
 Put tibia.dat, tibia.spr alongside within the application and start it
 Once it finishes, appearancesXXX.dat, catalog-content.json and sprites folder will have been generated.
+
+#### Available Options
+| Option   |      Usage    |
+|----------|:-------------:|
+| --version* |  specify the version of the client |
+| --dat* |    specify the relative location of the dat file   |
+| --spr* | specify the relative location of the spr file |
+| --alpha | specify whether to use transparency channel or not |
+
+> Note, options with `*` are required.
+
+#### Example
+``./opentibiaunity_datspr_converter --version=1098 --dat=Tibia.dat --spr=Tibia.spr``
