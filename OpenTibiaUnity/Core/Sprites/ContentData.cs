@@ -31,6 +31,7 @@ namespace OpenTibiaUnity.Core.Sprites
 
         public void Parse() {
             DatSignature = m_BinaryReader.GetU32();
+            Console.WriteLine("Dat Signature: 0x" + DatSignature.ToString("X"));
             ContentRevision = (ushort)DatSignature;
 
             int[] counts = new int[(int)ThingCategory.LastCategory];
@@ -47,10 +48,53 @@ namespace OpenTibiaUnity.Core.Sprites
                 
                 ThingTypeDictionaries[category] = new ThingTypesDict();
                 for (ushort id = firstId; id < counts[category]; id++) {
-                    ThingType thingType = ThingType.Unserialize(id, (ThingCategory)category, m_BinaryReader, m_ClientVersion);
+                    ThingType thingType = new ThingType() {
+                        ID = id,
+                        Category = (ThingCategory)category,
+                    };
+
+                    thingType.Unserialize(m_BinaryReader, m_ClientVersion);
                     ThingTypeDictionaries[category][id] = thingType;
                 }
             }
+        }
+
+        public static uint ClientVersionToDatSignature(int version) {
+            switch (version) {
+                case 770: return 0x439D5A33;
+                case 1098: return 0x42A3;
+
+                default: return 0;
+            }
+        }
+
+        public byte[] ConvertTo(int newVersion) {
+            var binaryWriter = new Net.OutputMessage();
+
+            binaryWriter.AddU32(ClientVersionToDatSignature(newVersion));
+
+            int[] counts = new int[(int)ThingCategory.LastCategory];
+            for (int category = 0; category < (int)ThingCategory.LastCategory; category++) {
+                int toWrite = ThingTypeDictionaries[category].Count;
+                if (category == (int)ThingCategory.Item)
+                    toWrite += 99;
+
+                counts[category] = toWrite + 1;
+                binaryWriter.AddU16((ushort)toWrite);
+            }
+
+            for (int category = 0; category < (int)ThingCategory.LastCategory; category++) {
+                ushort firstId = 1;
+                if (category == (int)ThingCategory.Item) {
+                    firstId = 100;
+                }
+                
+                for (ushort id = firstId; id < counts[category]; id++) {
+                    ThingTypeDictionaries[category][id].Serialize(binaryWriter, m_ClientVersion, newVersion);
+                }
+            }
+
+            return binaryWriter.GetBufferArray();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTibiaUnity.Core.Metaflags;
+using System;
 using System.Collections.Generic;
 
 namespace OpenTibiaUnity.Core.Sprites
@@ -14,17 +15,6 @@ namespace OpenTibiaUnity.Core.Sprites
     {
         public int Minimum { get; set; }
         public int Maximum { get; set; }
-        private System.Random m_Random = new System.Random();
-
-        public int Duration {
-            get {
-                if (Minimum == Maximum) {
-                    return Minimum;
-                }
-
-                return m_Random.Next(Minimum, Maximum);
-            }
-        }
     }
 
 
@@ -33,34 +23,57 @@ namespace OpenTibiaUnity.Core.Sprites
         public byte AnimationPhases { get; private set; } = 0;
         public bool Async { get; private set; } = false;
         public int LoopCount { get; private set; } = 0;
-        public int StartPhase { get; private set; } = -1;
-        public int CurrentPhase { get; private set; } = 0;
-        public int CurrentDuration { get; private set; } = 0;
-        public long LastPhaseTicks { get; private set; } = 0;
-        public byte AnimationDirection { get; private set; } = 0;
-        public bool IsComplete { get; private set; } = false;
-        public byte CurrentLoop { get; private set; } = 0;
+        public sbyte StartPhase { get; private set; } = -1;
         public List<FrameGroupDuration> FrameGroupDurations { get; private set; } = new List<FrameGroupDuration>();
+        
+        public static void SerializeLegacy(ThingType thingType, Net.OutputMessage binaryWriter, int startPhase, int phasesLimit) {
+            binaryWriter.AddU8(1);
+            binaryWriter.AddS32(thingType.HasAttribute(AttributesUniform.AnimateAlways) || thingType.Category == ThingCategory.Item ? 0 : 1);
+            binaryWriter.AddU8(0);
 
-        private System.Random m_Random = new System.Random();
+            int duration;
+            if (thingType.Category == ThingCategory.Effect)
+                duration = 75;
+            else
+                duration = phasesLimit > 0 ? 1000 / phasesLimit : 40;
 
-        public static FrameGroupAnimator Unserialize(byte animationPhases, Net.InputMessage binaryReader) {
-            FrameGroupAnimator frameGroupAnimator = new FrameGroupAnimator();
+            for (int i = 0; i < phasesLimit; i++) {
+                binaryWriter.AddS32(duration); // force legacy animation
+                binaryWriter.AddS32(duration);
+            }
+        }
 
-            frameGroupAnimator.AnimationPhases = animationPhases;
-            frameGroupAnimator.Async = binaryReader.GetU8() == 0;
-            frameGroupAnimator.LoopCount = binaryReader.GetS32();
-            frameGroupAnimator.StartPhase = binaryReader.GetS8();
+        public void Serialize(Net.OutputMessage binaryWriter, int startPhase, int phasesLimit) {
+            binaryWriter.AddU8(Async ? (byte)1 : (byte)0);
+            binaryWriter.AddS32(LoopCount);
+
+            int minPhase = startPhase;
+            int maxPhase = startPhase = phasesLimit;
+            if (StartPhase > 0 && (StartPhase < minPhase || StartPhase > maxPhase))
+                binaryWriter.AddS8((sbyte)minPhase);
+            else
+                binaryWriter.AddS8(StartPhase);
+
+            for (int i = 0; i < phasesLimit; i++) {
+                var frameGroupDuration = FrameGroupDurations[startPhase + i];
+                binaryWriter.AddS32(frameGroupDuration.Minimum);
+                binaryWriter.AddS32(frameGroupDuration.Maximum);
+            }
+        }
+
+        public void Unserialize(byte animationPhases, Net.InputMessage binaryReader) {
+            AnimationPhases = animationPhases;
+            Async = binaryReader.GetU8() == 0;
+            LoopCount = binaryReader.GetS32();
+            StartPhase = binaryReader.GetS8();
 
             for (int i = 0; i < animationPhases; i++) {
-                FrameGroupDuration duration = new FrameGroupDuration();
-                duration.Minimum = (int)binaryReader.GetU32();
-                duration.Maximum = (int)binaryReader.GetU32();
+                var duration = new FrameGroupDuration();
+                duration.Minimum = binaryReader.GetS32();
+                duration.Maximum = binaryReader.GetS32();
 
-                frameGroupAnimator.FrameGroupDurations.Add(duration);
+                FrameGroupDurations.Add(duration);
             }
-
-            return frameGroupAnimator;
         }
     }
 
@@ -77,30 +90,62 @@ namespace OpenTibiaUnity.Core.Sprites
         public FrameGroupAnimator Animator { get; private set; }
         public List<uint> Sprites { get; private set; } = new List<uint>();
 
-        public static FrameGroup Unserialize(ThingCategory category, Net.InputMessage binaryReader, int clientVersion) {
-            FrameGroup frameGroup = new FrameGroup();
+        public void Serialize(ThingType thingType, Net.OutputMessage binaryWriter, int fromVersion, int newVersion, sbyte startPhase, byte phasesLimit) {
+            binaryWriter.AddU8(Width);
+            binaryWriter.AddU8(Height);
+            if (Width > 1 || Height > 1)
+                binaryWriter.AddU8(ExactSize);
 
-            frameGroup.Width = binaryReader.GetU8();
-            frameGroup.Height = binaryReader.GetU8();
-            if (frameGroup.Width > 1 || frameGroup.Height > 1)
-                frameGroup.ExactSize = binaryReader.GetU8();
+            binaryWriter.AddU8(Layers);
+            binaryWriter.AddU8(PatternWidth);
+            binaryWriter.AddU8(PatternHeight);
+            if (newVersion >= 755)
+                binaryWriter.AddU8(PatternDepth);
+            
+            binaryWriter.AddU8(phasesLimit);
+
+            if (fromVersion < 1050) {
+                if (phasesLimit > 1 && newVersion >= 1050)
+                    FrameGroupAnimator.SerializeLegacy(thingType, binaryWriter, startPhase, phasesLimit);
+            } else {
+                if (phasesLimit > 1 && newVersion >= 1050)
+                    Animator.Serialize(binaryWriter, startPhase, phasesLimit);
+            }
+            
+            int spritesPerPhase = Width * Height * Layers * PatternWidth * PatternHeight * PatternDepth;
+            int totalSprites = phasesLimit * spritesPerPhase;
+            int offset = startPhase * spritesPerPhase;
+            for (int j = 0; j < totalSprites; j++) {
+                uint spriteId = Sprites[offset + j];
+                if (newVersion >= 960)
+                    binaryWriter.AddU32(spriteId);
+                else
+                    binaryWriter.AddU16((ushort)spriteId);
+            }
+        }
+
+        public void Unserialize(Net.InputMessage binaryReader, int clientVersion) {
+            Width = binaryReader.GetU8();
+            Height = binaryReader.GetU8();
+            if (Width > 1 || Height > 1)
+                ExactSize = binaryReader.GetU8();
             else
-                frameGroup.ExactSize = 32;
+                ExactSize = 32;
 
-            frameGroup.Layers = binaryReader.GetU8();
-            frameGroup.PatternWidth = binaryReader.GetU8();
-            frameGroup.PatternHeight = binaryReader.GetU8();
-            frameGroup.PatternDepth = clientVersion >= 755 ? binaryReader.GetU8() : (byte)1;
-            frameGroup.Phases = binaryReader.GetU8();
+            Layers = binaryReader.GetU8();
+            PatternWidth = binaryReader.GetU8();
+            PatternHeight = binaryReader.GetU8();
+            PatternDepth = clientVersion >= 755 ? binaryReader.GetU8() : (byte)1;
+            Phases = binaryReader.GetU8();
 
-            if (frameGroup.Phases > 1 && clientVersion >= 1050)
-                frameGroup.Animator = FrameGroupAnimator.Unserialize(frameGroup.Phases, binaryReader);
+            if (Phases > 1 && clientVersion >= 1050) {
+                Animator = new FrameGroupAnimator();
+                Animator.Unserialize(Phases, binaryReader);
+            }
 
-            int totalSprites = frameGroup.Width * frameGroup.Height * frameGroup.Layers * frameGroup.PatternWidth * frameGroup.PatternHeight * frameGroup.PatternDepth * frameGroup.Phases;
+            int totalSprites = Width * Height * Layers * PatternWidth * PatternHeight * PatternDepth * Phases;
             for (int j = 0; j < totalSprites; j++)
-                frameGroup.Sprites.Add(clientVersion >= 960 ? binaryReader.GetU32() : binaryReader.GetU16());
-
-            return frameGroup;
+                Sprites.Add(clientVersion >= 960 ? binaryReader.GetU32() : binaryReader.GetU16());
         }
     }
 }

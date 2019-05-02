@@ -13,7 +13,7 @@ namespace OpenTibiaUnity.Core.Sprites
     public sealed class MarketData
     {
         public string name;
-        public int category;
+        public ushort category;
         public ushort restrictLevel;
         public ushort restrictProfession;
         public ushort showAs;
@@ -22,17 +22,16 @@ namespace OpenTibiaUnity.Core.Sprites
 
     public sealed class Vector2Int
     {
-        public int x = 0;
-        public int y = 0;
+        public ushort x = 0;
+        public ushort y = 0;
 
-        public Vector2Int(int _x, int _y) { x = _x; y = _y; }
+        public Vector2Int(ushort _x, ushort _y) { x = _x; y = _y; }
     }
 
     public sealed class ThingType
     {
-        public ThingCategory Category { get; private set; }
-        public ushort ID { get; private set; }
-        public ushort Elevation { get; private set; }
+        public ThingCategory Category { get; set; }
+        public ushort ID { get; set; }
         public Dictionary<byte, object> Attributes { get; private set; } = new Dictionary<byte, object>();
         public Dictionary<FrameGroupType, FrameGroup> FrameGroups { get; private set; } = new Dictionary<FrameGroupType, FrameGroup>();
 
@@ -40,135 +39,285 @@ namespace OpenTibiaUnity.Core.Sprites
             return Attributes.TryGetValue(attr, out object _);
         }
 
-        public static ThingType Unserialize(ushort id, ThingCategory category, Net.InputMessage binaryReader, int clientVersion) {
-            ThingType thingType = new ThingType() {
-                ID = id,
-                Category = category
-            };
+        public void Serialize(Net.OutputMessage binaryWriter, int fromVersion, int newVersion) {
+            if (newVersion <= 730)
+                Serialize730(binaryWriter);
+            else if (newVersion <= 750)
+                Serialize750(binaryWriter);
+            else if (newVersion <= 772)
+                Serialize772(binaryWriter);
+            else if (newVersion <= 854)
+                Serialize854(binaryWriter);
+            else if (newVersion <= 986)
+                Serialize986(binaryWriter);
+            else // Tibia 10
+                Serialize1010(binaryWriter, newVersion);
 
+            // the whole idea is how to animate outfits correctly in different versions
+            if (Category != ThingCategory.Creature) {
+                if (ID == 424 && Category == ThingCategory.Item) {
+                    Console.WriteLine("Phases: " + FrameGroups[0].Phases);
+                }
+
+                FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, FrameGroups[0].Phases);
+                return;
+            }
+            
+            if (fromVersion < 1057) {
+                if (newVersion < 1057) {
+                    FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, FrameGroups[0].Phases);
+                } else {
+                    // current uses phases, newer uses frame groups
+                    if (FrameGroups[0].Phases == 1 || HasAttribute(AttributesUniform.AnimateAlways)) {
+                        binaryWriter.AddU8(1);
+                        binaryWriter.AddU8((int)FrameGroupType.Idle);
+                        FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, FrameGroups[0].Phases);
+                        return;
+                    }
+
+                    binaryWriter.AddU8(2);
+                    binaryWriter.AddU8((int)FrameGroupType.Idle);
+                    FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, 1);
+                    binaryWriter.AddU8((int)FrameGroupType.Idle);
+                    FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 1, (byte)(FrameGroups[0].Phases - 1));
+                }
+            } else {
+                if (newVersion < 1057) {
+                    throw new Exception("It's not possible to convert a client >= 1057 to a client < 1057");
+                } else {
+                    binaryWriter.AddU8((byte)FrameGroups.Count);
+                    foreach (var pair in FrameGroups) {
+                        binaryWriter.AddU8((byte)pair.Key);
+                        pair.Value.Serialize(this, binaryWriter, fromVersion, newVersion, 0, pair.Value.Phases);
+                    }
+                }
+            }
+        }
+
+        public void Unserialize(Net.InputMessage binaryReader, int clientVersion) {
             int lastAttr = 0, previousAttr = 0, attr = 0;
             bool done;
             try {
                 if (clientVersion <= 730)
-                    done = Unserialize730(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize730(binaryReader, ref lastAttr, ref previousAttr, ref attr);
                 else if (clientVersion <= 750)
-                    done = Unserialize750(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize750(binaryReader, ref lastAttr, ref previousAttr, ref attr);
                 else if (clientVersion <= 772)
-                    done = Unserialize772(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize772(binaryReader, ref lastAttr, ref previousAttr, ref attr);
                 else if (clientVersion <= 854)
-                    done = Unserialize854(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize854(binaryReader, ref lastAttr, ref previousAttr, ref attr);
                 else if (clientVersion <= 986)
-                    done = Unserialize986(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize986(binaryReader, ref lastAttr, ref previousAttr, ref attr);
                 else // Tibia 10
-                    done = Unserialize1010(thingType, binaryReader, ref lastAttr, ref previousAttr, ref attr);
+                    done = Unserialize1010(binaryReader, ref lastAttr, ref previousAttr, ref attr);
             } catch (Exception e) {
                 throw new Exception(string.Format("Parsing Failed ({0}). (attr: 0x{1:X2}, previous: 0x{2:X2}, last: 0x{3:X2})", e, attr, previousAttr, lastAttr));
             }
 
             if (!done)
-                throw new Exception("Couldn't parse thing [category: " + category + ", ID: " + id + "].");
+                throw new Exception("Couldn't parse thing [category: " + Category + ", ID: " + ID + "].");
             
-            bool hasFrameGroups = category == ThingCategory.Creature && clientVersion >= 1057;
+            bool hasFrameGroups = Category == ThingCategory.Creature && clientVersion >= 1057;
             byte groupCount = hasFrameGroups ? binaryReader.GetU8() : (byte)1U;
             for (int i = 0; i < groupCount; i++) {
                 FrameGroupType groupType = FrameGroupType.Default;
                 if (hasFrameGroups)
                     groupType = (FrameGroupType)binaryReader.GetU8();
 
-                thingType.FrameGroups[groupType] = FrameGroup.Unserialize(category, binaryReader, clientVersion);
+                FrameGroup frameGroup = new FrameGroup();
+                frameGroup.Unserialize(binaryReader, clientVersion);
+                FrameGroups[groupType] = frameGroup;
             }
-
-            return thingType;
         }
 
-        private static bool Unserialize730(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void ThrowUnknownFlag(int attr) {
+            throw new ArgumentException(string.Format("Unknown flag (ID = {0}, Category = {1}): {2}", ID, Category, attr));
+        }
+
+        private void Serialize730(Net.OutputMessage binaryWriter) {
+            foreach (var pair in Attributes) {
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes730.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes730.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes730.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes730.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes730.Stackable);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes730.MultiUse);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes730.ForceUse);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes730.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes730.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes730.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes730.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes730.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes730.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes730.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes730.BlockPath);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes730.Pickupable);
+                        break;
+                    case AttributesUniform.Light:
+                        binaryWriter.AddU8(Attributes730.Light);
+                        LightInfo data = (LightInfo)pair.Value;
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.FloorChange:
+                        binaryWriter.AddU8(Attributes730.FloorChange);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes730.FullGround);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes730.FullGround);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Offset:
+                        binaryWriter.AddU8(Attributes730.Offset);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes730.MinimapColor);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes730.Rotateable);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes730.LyingCorpse);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes730.AnimateAlways);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes730.AnimateAlways);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes730.Last);
+        }
+
+        private bool Unserialize730(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes730.Last) {
                 switch (attr) {
                     case Attributes730.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes730.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes730.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes730.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes730.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes730.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes730.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes730.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes730.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes730.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes730.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes730.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes730.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes730.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes730.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes730.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes730.Light:
                         LightInfo data = new LightInfo();
                         data.intensity = binaryReader.GetU16();
                         data.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = data;
+                        Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes730.FloorChange:
-                        thingType.Attributes[AttributesUniform.FloorChange] = true;
+                        Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes730.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes730.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes730.Offset:
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
                         break;
                     case Attributes730.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes730.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes730.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes730.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes730.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
 
                     default:
-                        throw new ArgumentException("Unknown flag: " + attr);
+                        ThrowUnknownFlag(attr);
+                        break;
                 }
 
                 lastAttr = previousAttr;
@@ -179,103 +328,212 @@ namespace OpenTibiaUnity.Core.Sprites
             return true;
         }
 
-        private static bool Unserialize750(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void Serialize750(Net.OutputMessage binaryWriter) {
+            foreach (var pair in Attributes) {
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes750.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes750.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes750.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes750.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes750.Stackable);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes750.MultiUse);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes750.ForceUse);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes750.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes750.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes750.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes750.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes750.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes750.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes750.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes750.BlockPath);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes750.Pickupable);
+                        break;
+                    case AttributesUniform.Light:
+                        var data = (LightInfo)Attributes[AttributesUniform.Light];
+                        binaryWriter.AddU8(Attributes750.Light);
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.FloorChange:
+                        binaryWriter.AddU8(Attributes750.FloorChange);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes750.FullGround);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes750.Elevation);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Offset:
+                        binaryWriter.AddU8(Attributes750.Offset);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes750.MinimapColor);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes750.Rotateable);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes750.LyingCorpse);
+                        break;
+                    case AttributesUniform.Hangable:
+                        binaryWriter.AddU8(Attributes750.Hangable);
+                        break;
+                    case AttributesUniform.HookSouth:
+                        binaryWriter.AddU8(Attributes750.HookSouth);
+                        break;
+                    case AttributesUniform.HookEast:
+                        binaryWriter.AddU8(Attributes750.HookEast);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes750.AnimateAlways);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes750.LensHelp);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes750.Last);
+        }
+
+        private bool Unserialize750(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes750.Last) {
                 switch (attr) {
                     case Attributes750.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes750.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes750.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes750.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes750.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes750.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes750.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes750.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes750.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes750.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes750.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes750.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes750.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes750.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes750.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes750.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes750.Light:
                         LightInfo data = new LightInfo();
                         data.intensity = binaryReader.GetU16();
                         data.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = data;
+                        Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes750.FloorChange:
-                        thingType.Attributes[AttributesUniform.FloorChange] = true;
+                        Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes750.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes750.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes750.Offset:
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
                         break;
                     case Attributes750.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes750.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes750.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes750.Hangable:
-                        thingType.Attributes[AttributesUniform.Hangable] = true;
+                        Attributes[AttributesUniform.Hangable] = true;
                         break;
                     case Attributes750.HookSouth:
-                        thingType.Attributes[AttributesUniform.HookSouth] = true;
+                        Attributes[AttributesUniform.HookSouth] = true;
                         break;
                     case Attributes750.HookEast:
-                        thingType.Attributes[AttributesUniform.HookEast] = true;
+                        Attributes[AttributesUniform.HookEast] = true;
                         break;
                     case Attributes750.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes750.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
 
                     default:
-                        throw new ArgumentException("Unknown flag: " + attr);
+                        ThrowUnknownFlag(attr);
+                        break;
                 }
 
                 lastAttr = previousAttr;
@@ -286,104 +544,215 @@ namespace OpenTibiaUnity.Core.Sprites
             return true;
         }
 
-        private static bool Unserialize772(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void Serialize772(Net.OutputMessage binaryWriter) {
+            foreach (var pair in Attributes) {
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes772.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.GroundBorder:
+                        binaryWriter.AddU8(Attributes772.GroundBorder);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes772.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes772.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes772.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes772.Stackable);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes772.MultiUse);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes772.ForceUse);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes772.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes772.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes772.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes772.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes772.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes772.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes772.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes772.BlockPath);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes772.Pickupable);
+                        break;
+                    case AttributesUniform.Hangable:
+                        binaryWriter.AddU8(Attributes772.Hangable);
+                        break;
+                    case AttributesUniform.HookSouth:
+                        binaryWriter.AddU8(Attributes772.HookSouth);
+                        break;
+                    case AttributesUniform.HookEast:
+                        binaryWriter.AddU8(Attributes772.HookEast);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes772.Rotateable);
+                        break;
+                    case AttributesUniform.Light:
+                        var data = (LightInfo)pair.Value;
+                        binaryWriter.AddU8(Attributes772.LensHelp);
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.FloorChange:
+                        binaryWriter.AddU8(Attributes772.FloorChange);
+                        break;
+                    case AttributesUniform.Offset:
+                        var offset = (Vector2Int)pair.Value;
+                        binaryWriter.AddU8(Attributes772.LensHelp);
+                        binaryWriter.AddU16((ushort)offset.x);
+                        binaryWriter.AddU16((ushort)offset.y);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes772.Elevation);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes772.LyingCorpse);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes772.AnimateAlways);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes772.MinimapColor);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes772.LensHelp);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes772.FullGround);
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes772.Last);
+        }
+
+        private bool Unserialize772(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes772.Last) {
                 switch (attr) {
                     case Attributes772.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes772.GroundBorder:
-                        thingType.Attributes[AttributesUniform.GroundBorder] = true;
+                        Attributes[AttributesUniform.GroundBorder] = true;
                         break;
                     case Attributes772.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes772.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes772.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes772.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes772.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes772.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes772.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes772.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes772.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes772.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes772.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes772.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes772.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes772.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes772.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes772.Hangable:
-                        thingType.Attributes[AttributesUniform.Hangable] = true;
+                        Attributes[AttributesUniform.Hangable] = true;
                         break;
                     case Attributes772.HookSouth:
-                        thingType.Attributes[AttributesUniform.HookSouth] = true;
+                        Attributes[AttributesUniform.HookSouth] = true;
                         break;
                     case Attributes772.HookEast:
-                        thingType.Attributes[AttributesUniform.HookEast] = true;
+                        Attributes[AttributesUniform.HookEast] = true;
                         break;
                     case Attributes772.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes772.Light:
                         LightInfo data = new LightInfo();
                         data.intensity = binaryReader.GetU16();
                         data.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = data;
+                        Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes772.FloorChange:
-                        thingType.Attributes[AttributesUniform.FloorChange] = true;
+                        Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes772.Offset:
                         ushort offsetX = binaryReader.GetU16();
                         ushort offsetY = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes772.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes772.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes772.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes772.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes772.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
                     case Attributes772.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     default:
                         throw new System.ArgumentException("Unknown Attribute: " + attr);
@@ -397,113 +766,233 @@ namespace OpenTibiaUnity.Core.Sprites
             return true;
         }
 
-        private static bool Unserialize854(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void Serialize854(Net.OutputMessage binaryWriter) {
+            foreach (var pair in Attributes) {
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes854.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.GroundBorder:
+                        binaryWriter.AddU8(Attributes854.GroundBorder);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes854.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes854.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes854.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes854.Stackable);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes854.ForceUse);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes854.MultiUse);
+                        break;
+                    case AttributesUniform.Charges:
+                        binaryWriter.AddU8(Attributes854.Charges);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes854.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes854.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes854.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes854.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes854.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes854.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes854.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes854.BlockPath);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes854.Pickupable);
+                        break;
+                    case AttributesUniform.Hangable:
+                        binaryWriter.AddU8(Attributes854.Hangable);
+                        break;
+                    case AttributesUniform.HookSouth:
+                        binaryWriter.AddU8(Attributes854.HookSouth);
+                        break;
+                    case AttributesUniform.HookEast:
+                        binaryWriter.AddU8(Attributes854.HookEast);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes854.Rotateable);
+                        break;
+                    case AttributesUniform.Light:
+                        var data = (LightInfo)pair.Value;
+                        binaryWriter.AddU8(Attributes854.Light);
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.DontHide:
+                        binaryWriter.AddU8(Attributes854.DontHide);
+                        break;
+                    case AttributesUniform.FloorChange:
+                        binaryWriter.AddU8(Attributes854.FloorChange);
+                        break;
+                    case AttributesUniform.Offset:
+                        var offset = (Vector2Int)pair.Value;
+                        binaryWriter.AddU8(Attributes854.Light);
+                        binaryWriter.AddU16(offset.x);
+                        binaryWriter.AddU16(offset.y);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes854.Elevation);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes854.LyingCorpse);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes854.AnimateAlways);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes854.MinimapColor);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes854.LensHelp);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes854.FullGround);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes854.Last);
+        }
+
+        private bool Unserialize854(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes854.Last) {
                 switch (attr) {
                     case Attributes854.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes854.GroundBorder:
-                        thingType.Attributes[AttributesUniform.GroundBorder] = true;
+                        Attributes[AttributesUniform.GroundBorder] = true;
                         break;
                     case Attributes854.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes854.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes854.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes854.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes854.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes854.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes854.Charges:
-                        thingType.Attributes[AttributesUniform.Charges] = true;
+                        Attributes[AttributesUniform.Charges] = true;
                         break;
                     case Attributes854.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes854.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes854.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes854.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes854.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes854.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes854.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes854.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes854.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes854.Hangable:
-                        thingType.Attributes[AttributesUniform.Hangable] = true;
+                        Attributes[AttributesUniform.Hangable] = true;
                         break;
                     case Attributes854.HookSouth:
-                        thingType.Attributes[AttributesUniform.HookSouth] = true;
+                        Attributes[AttributesUniform.HookSouth] = true;
                         break;
                     case Attributes854.HookEast:
-                        thingType.Attributes[AttributesUniform.HookEast] = true;
+                        Attributes[AttributesUniform.HookEast] = true;
                         break;
                     case Attributes854.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes854.Light:
                         LightInfo data = new LightInfo();
                         data.intensity = binaryReader.GetU16();
                         data.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = data;
+                        Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes854.DontHide:
-                        thingType.Attributes[AttributesUniform.DontHide] = true;
+                        Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes854.FloorChange:
-                        thingType.Attributes[AttributesUniform.FloorChange] = true;
+                        Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes854.Offset:
                         ushort offsetX = binaryReader.GetU16();
                         ushort offsetY = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes854.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes854.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes854.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes854.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes854.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
                     case Attributes854.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     default:
-                        throw new ArgumentException("Unknown flag: " + attr);
+                        ThrowUnknownFlag(attr);
+                        break;
                 }
 
                 lastAttr = previousAttr;
@@ -514,113 +1003,246 @@ namespace OpenTibiaUnity.Core.Sprites
             return true;
         }
 
-        private static bool Unserialize986(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void Serialize986(Net.OutputMessage binaryWriter) {
+            foreach (var pair in Attributes) {
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes986.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.GroundBorder:
+                        binaryWriter.AddU8(Attributes986.GroundBorder);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes986.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes986.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes986.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes986.Stackable);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes986.ForceUse);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes986.MultiUse);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes986.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes986.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes986.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes986.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes986.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes986.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes986.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes986.BlockPath);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes986.Pickupable);
+                        break;
+                    case AttributesUniform.Hangable:
+                        binaryWriter.AddU8(Attributes986.Hangable);
+                        break;
+                    case AttributesUniform.HookSouth:
+                        binaryWriter.AddU8(Attributes986.HookSouth);
+                        break;
+                    case AttributesUniform.HookEast:
+                        binaryWriter.AddU8(Attributes986.HookEast);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes986.Rotateable);
+                        break;
+                    case AttributesUniform.Light:
+                        var data = (LightInfo)pair.Value;
+                        binaryWriter.AddU8(Attributes986.Light);
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.DontHide:
+                        binaryWriter.AddU8(Attributes986.DontHide);
+                        break;
+                    case AttributesUniform.Translucent:
+                        binaryWriter.AddU8(Attributes986.Translucent);
+                        break;
+                    case AttributesUniform.Offset:
+                        var offset = (Vector2Int)pair.Value;
+                        binaryWriter.AddU8(Attributes986.Light);
+                        binaryWriter.AddU16(offset.x);
+                        binaryWriter.AddU16(offset.y);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes986.Elevation);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes986.LyingCorpse);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes986.AnimateAlways);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes986.MinimapColor);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes986.LensHelp);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes986.FullGround);
+                        break;
+                    case AttributesUniform.Look:
+                        binaryWriter.AddU8(Attributes986.Look);
+                        break;
+                    case AttributesUniform.Cloth:
+                        binaryWriter.AddU8(Attributes986.Cloth);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Market:
+                        var marketData = (MarketData)pair.Value;
+                        binaryWriter.AddU8(Attributes986.Cloth);
+                        binaryWriter.AddU16(marketData.category);
+                        binaryWriter.AddU16(marketData.tradeAs);
+                        binaryWriter.AddU16(marketData.showAs);
+                        binaryWriter.AddString(marketData.name);
+                        binaryWriter.AddU16(marketData.restrictProfession);
+                        binaryWriter.AddU16(marketData.restrictLevel);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes986.Last);
+        }
+
+        private bool Unserialize986(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes986.Last) {
                 switch (attr) {
                     case Attributes986.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes986.GroundBorder:
-                        thingType.Attributes[AttributesUniform.GroundBorder] = true;
+                        Attributes[AttributesUniform.GroundBorder] = true;
                         break;
                     case Attributes986.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes986.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes986.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes986.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes986.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes986.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes986.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes986.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes986.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes986.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes986.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes986.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes986.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes986.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes986.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes986.Hangable:
-                        thingType.Attributes[AttributesUniform.Hangable] = true;
+                        Attributes[AttributesUniform.Hangable] = true;
                         break;
                     case Attributes986.HookSouth:
-                        thingType.Attributes[AttributesUniform.HookSouth] = true;
+                        Attributes[AttributesUniform.HookSouth] = true;
                         break;
                     case Attributes986.HookEast:
-                        thingType.Attributes[AttributesUniform.HookEast] = true;
+                        Attributes[AttributesUniform.HookEast] = true;
                         break;
                     case Attributes986.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes986.Light:
                         LightInfo lightData = new LightInfo();
                         lightData.intensity = binaryReader.GetU16();
                         lightData.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = lightData;
+                        Attributes[AttributesUniform.Light] = lightData;
                         break;
                     case Attributes986.DontHide:
-                        thingType.Attributes[AttributesUniform.DontHide] = true;
+                        Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes986.Translucent:
-                        thingType.Attributes[AttributesUniform.DontHide] = true;
+                        Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes986.Offset:
                         ushort offsetX = binaryReader.GetU16();
                         ushort offsetY = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes986.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes986.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes986.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes986.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes986.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
                     case Attributes986.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes986.Look:
-                        thingType.Attributes[AttributesUniform.Look] = true;
+                        Attributes[AttributesUniform.Look] = true;
                         break;
                     case Attributes986.Cloth:
-                        thingType.Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
                         break;
                     case Attributes986.Market:
                         MarketData marketData = new MarketData();
@@ -631,10 +1253,11 @@ namespace OpenTibiaUnity.Core.Sprites
                         marketData.restrictProfession = binaryReader.GetU16();
                         marketData.restrictLevel = binaryReader.GetU16();
 
-                        thingType.Attributes[AttributesUniform.Market] = marketData;
+                        Attributes[AttributesUniform.Market] = marketData;
                         break;
                     default:
-                        throw new ArgumentException("Unknown flag: " + attr);
+                        ThrowUnknownFlag(attr);
+                        break;
                 }
 
                 lastAttr = previousAttr;
@@ -645,116 +1268,276 @@ namespace OpenTibiaUnity.Core.Sprites
             return true;
         }
 
-        private static bool Unserialize1010(ThingType thingType, Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+        private void Serialize1010(Net.OutputMessage binaryWriter, int clientVersion) {
+            foreach (var pair in Attributes) {
+                if (ID == 424 && Category == ThingCategory.Item)
+                    Console.WriteLine("Writing: " + pair.Key);
+
+                switch (pair.Key) {
+                    case AttributesUniform.Ground:
+                        binaryWriter.AddU8(Attributes1056.Ground);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.GroundBorder:
+                        binaryWriter.AddU8(Attributes1056.GroundBorder);
+                        break;
+                    case AttributesUniform.Bottom:
+                        binaryWriter.AddU8(Attributes1056.Bottom);
+                        break;
+                    case AttributesUniform.Top:
+                        binaryWriter.AddU8(Attributes1056.Top);
+                        break;
+                    case AttributesUniform.Container:
+                        binaryWriter.AddU8(Attributes1056.Container);
+                        break;
+                    case AttributesUniform.Stackable:
+                        binaryWriter.AddU8(Attributes1056.Stackable);
+                        break;
+                    case AttributesUniform.ForceUse:
+                        binaryWriter.AddU8(Attributes1056.ForceUse);
+                        break;
+                    case AttributesUniform.MultiUse:
+                        binaryWriter.AddU8(Attributes1056.MultiUse);
+                        break;
+                    case AttributesUniform.Writable:
+                        binaryWriter.AddU8(Attributes1056.Writable);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.WritableOnce:
+                        binaryWriter.AddU8(Attributes1056.WritableOnce);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FluidContainer:
+                        binaryWriter.AddU8(Attributes1056.FluidContainer);
+                        break;
+                    case AttributesUniform.Splash:
+                        binaryWriter.AddU8(Attributes1056.Splash);
+                        break;
+                    case AttributesUniform.Unpassable:
+                        binaryWriter.AddU8(Attributes1056.Unpassable);
+                        break;
+                    case AttributesUniform.Unmoveable:
+                        binaryWriter.AddU8(Attributes1056.Unmoveable);
+                        break;
+                    case AttributesUniform.Unsight:
+                        binaryWriter.AddU8(Attributes1056.Unsight);
+                        break;
+                    case AttributesUniform.BlockPath:
+                        binaryWriter.AddU8(Attributes1056.BlockPath);
+                        break;
+                    case AttributesUniform.NoMoveAnimation:
+                        binaryWriter.AddU8(Attributes1056.NoMoveAnimation);
+                        break;
+                    case AttributesUniform.Pickupable:
+                        binaryWriter.AddU8(Attributes1056.Pickupable);
+                        break;
+                    case AttributesUniform.Hangable:
+                        binaryWriter.AddU8(Attributes1056.Hangable);
+                        break;
+                    case AttributesUniform.HookSouth:
+                        binaryWriter.AddU8(Attributes1056.HookSouth);
+                        break;
+                    case AttributesUniform.HookEast:
+                        binaryWriter.AddU8(Attributes1056.HookEast);
+                        break;
+                    case AttributesUniform.Rotateable:
+                        binaryWriter.AddU8(Attributes1056.Rotateable);
+                        break;
+                    case AttributesUniform.Light:
+                        var data = (LightInfo)pair.Value;
+                        binaryWriter.AddU8(Attributes1056.Light);
+                        binaryWriter.AddU16(data.intensity);
+                        binaryWriter.AddU16(data.color);
+                        break;
+                    case AttributesUniform.DontHide:
+                        binaryWriter.AddU8(Attributes1056.DontHide);
+                        break;
+                    case AttributesUniform.Translucent:
+                        binaryWriter.AddU8(Attributes1056.Translucent);
+                        break;
+                    case AttributesUniform.Offset:
+                        var offset = (Vector2Int)pair.Value;
+                        binaryWriter.AddU8(Attributes1056.Offset);
+                        binaryWriter.AddU16(offset.x);
+                        binaryWriter.AddU16(offset.y);
+                        break;
+                    case AttributesUniform.Elevation:
+                        binaryWriter.AddU8(Attributes1056.Elevation);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LyingCorpse:
+                        binaryWriter.AddU8(Attributes1056.LyingCorpse);
+                        break;
+                    case AttributesUniform.AnimateAlways:
+                        binaryWriter.AddU8(Attributes1056.AnimateAlways);
+                        break;
+                    case AttributesUniform.MinimapColor:
+                        binaryWriter.AddU8(Attributes1056.MinimapColor);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.LensHelp:
+                        binaryWriter.AddU8(Attributes1056.LensHelp);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.FullGround:
+                        binaryWriter.AddU8(Attributes1056.FullGround);
+                        break;
+                    case AttributesUniform.Look:
+                        binaryWriter.AddU8(Attributes1056.Look);
+                        break;
+                    case AttributesUniform.Cloth:
+                        binaryWriter.AddU8(Attributes1056.Cloth);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Market:
+                        var marketData = (MarketData)Attributes[AttributesUniform.Market];
+
+                        binaryWriter.AddU8(Attributes1056.Market);
+                        binaryWriter.AddU16(marketData.category);
+                        binaryWriter.AddU16(marketData.tradeAs);
+                        binaryWriter.AddU16(marketData.showAs);
+                        binaryWriter.AddString(marketData.name);
+                        binaryWriter.AddU16(marketData.restrictProfession);
+                        binaryWriter.AddU16(marketData.restrictLevel);
+                        break;
+                    case AttributesUniform.DefaultAction:
+                        binaryWriter.AddU8(Attributes1056.DefaultAction);
+                        binaryWriter.AddU16((ushort)pair.Value);
+                        break;
+                    case AttributesUniform.Use:
+                        binaryWriter.AddU8(Attributes1056.Use);
+                        break;
+                    case AttributesUniform.Wrapable:
+                        if (clientVersion >= 1092)
+                            binaryWriter.AddU8(Attributes1056.Wrapable);
+                        break;
+                    case AttributesUniform.Unwrapable:
+                        if (clientVersion >= 1092)
+                            binaryWriter.AddU8(Attributes1056.Unwrapable);
+                        break;
+                    case AttributesUniform.TopEffect:
+                        if (clientVersion >= 1093)
+                            binaryWriter.AddU8(Attributes1056.TopEffect);
+                        break;
+                }
+            }
+
+            binaryWriter.AddU8(Attributes1056.Last);
+        }
+
+        private bool Unserialize1010(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
             attr = binaryReader.GetU8();
             while (attr < Attributes1056.Last) {
+                if (ID == 424 && Category == ThingCategory.Item)
+                    Console.WriteLine("Reading: " + attr);
+                
                 switch (attr) {
                     case Attributes1056.Ground:
-                        thingType.Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
                         break;
                     case Attributes1056.GroundBorder:
-                        thingType.Attributes[AttributesUniform.GroundBorder] = true;
+                        Attributes[AttributesUniform.GroundBorder] = true;
                         break;
                     case Attributes1056.Bottom:
-                        thingType.Attributes[AttributesUniform.Bottom] = true;
+                        Attributes[AttributesUniform.Bottom] = true;
                         break;
                     case Attributes1056.Top:
-                        thingType.Attributes[AttributesUniform.Top] = true;
+                        Attributes[AttributesUniform.Top] = true;
                         break;
                     case Attributes1056.Container:
-                        thingType.Attributes[AttributesUniform.Container] = true;
+                        Attributes[AttributesUniform.Container] = true;
                         break;
                     case Attributes1056.Stackable:
-                        thingType.Attributes[AttributesUniform.Stackable] = true;
+                        Attributes[AttributesUniform.Stackable] = true;
                         break;
                     case Attributes1056.ForceUse:
-                        thingType.Attributes[AttributesUniform.ForceUse] = true;
+                        Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes1056.MultiUse:
-                        thingType.Attributes[AttributesUniform.MultiUse] = true;
+                        Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes1056.Writable:
-                        thingType.Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
                         break;
                     case Attributes1056.WritableOnce:
-                        thingType.Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
                         break;
                     case Attributes1056.FluidContainer:
-                        thingType.Attributes[AttributesUniform.FluidContainer] = true;
+                        Attributes[AttributesUniform.FluidContainer] = true;
                         break;
                     case Attributes1056.Splash:
-                        thingType.Attributes[AttributesUniform.Splash] = true;
+                        Attributes[AttributesUniform.Splash] = true;
                         break;
                     case Attributes1056.Unpassable:
-                        thingType.Attributes[AttributesUniform.Unpassable] = true;
+                        Attributes[AttributesUniform.Unpassable] = true;
                         break;
                     case Attributes1056.Unmoveable:
-                        thingType.Attributes[AttributesUniform.Unmoveable] = true;
+                        Attributes[AttributesUniform.Unmoveable] = true;
                         break;
                     case Attributes1056.Unsight:
-                        thingType.Attributes[AttributesUniform.Unsight] = true;
+                        Attributes[AttributesUniform.Unsight] = true;
                         break;
                     case Attributes1056.BlockPath:
-                        thingType.Attributes[AttributesUniform.BlockPath] = true;
+                        Attributes[AttributesUniform.BlockPath] = true;
                         break;
                     case Attributes1056.NoMoveAnimation:
-                        thingType.Attributes[AttributesUniform.NoMoveAnimation] = true;
+                        Attributes[AttributesUniform.NoMoveAnimation] = true;
                         break;
                     case Attributes1056.Pickupable:
-                        thingType.Attributes[AttributesUniform.Pickupable] = true;
+                        Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes1056.Hangable:
-                        thingType.Attributes[AttributesUniform.Hangable] = true;
+                        Attributes[AttributesUniform.Hangable] = true;
                         break;
                     case Attributes1056.HookSouth:
-                        thingType.Attributes[AttributesUniform.HookSouth] = true;
+                        Attributes[AttributesUniform.HookSouth] = true;
                         break;
                     case Attributes1056.HookEast:
-                        thingType.Attributes[AttributesUniform.HookEast] = true;
+                        Attributes[AttributesUniform.HookEast] = true;
                         break;
                     case Attributes1056.Rotateable:
-                        thingType.Attributes[AttributesUniform.Rotateable] = true;
+                        Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes1056.Light:
                         LightInfo lightData = new LightInfo();
                         lightData.intensity = binaryReader.GetU16();
                         lightData.color = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Light] = lightData;
+                        Attributes[AttributesUniform.Light] = lightData;
                         break;
                     case Attributes1056.DontHide:
-                        thingType.Attributes[AttributesUniform.DontHide] = true;
+                        Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes1056.Translucent:
-                        thingType.Attributes[AttributesUniform.DontHide] = true;
+                        Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes1056.Offset:
                         ushort offsetX = binaryReader.GetU16();
                         ushort offsetY = binaryReader.GetU16();
-                        thingType.Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
+                        Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes1056.Elevation:
-                        thingType.Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
                         break;
                     case Attributes1056.LyingCorpse:
-                        thingType.Attributes[AttributesUniform.LyingCorpse] = true;
+                        Attributes[AttributesUniform.LyingCorpse] = true;
                         break;
                     case Attributes1056.AnimateAlways:
-                        thingType.Attributes[AttributesUniform.AnimateAlways] = true;
+                        Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes1056.MinimapColor:
-                        thingType.Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
                         break;
                     case Attributes1056.LensHelp:
-                        thingType.Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
                         break;
                     case Attributes1056.FullGround:
-                        thingType.Attributes[AttributesUniform.FullGround] = true;
+                        Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes1056.Look:
-                        thingType.Attributes[AttributesUniform.Look] = true;
+                        Attributes[AttributesUniform.Look] = true;
                         break;
                     case Attributes1056.Cloth:
-                        thingType.Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
                         break;
                     case Attributes1056.Market:
                         MarketData marketData = new MarketData();
@@ -765,25 +1548,26 @@ namespace OpenTibiaUnity.Core.Sprites
                         marketData.restrictProfession = binaryReader.GetU16();
                         marketData.restrictLevel = binaryReader.GetU16();
 
-                        thingType.Attributes[AttributesUniform.Market] = marketData;
+                        Attributes[AttributesUniform.Market] = marketData;
                         break;
                     case Attributes1056.DefaultAction:
-                        thingType.Attributes[AttributesUniform.DefaultAction] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.DefaultAction] = binaryReader.GetU16();
                         break;
                     case Attributes1056.Use:
-                        thingType.Attributes[AttributesUniform.Use] = true;
+                        Attributes[AttributesUniform.Use] = true;
                         break;
                     case Attributes1056.Wrapable:
-                        thingType.Attributes[AttributesUniform.Wrapable] = true;
+                        Attributes[AttributesUniform.Wrapable] = true;
                         break;
                     case Attributes1056.Unwrapable:
-                        thingType.Attributes[AttributesUniform.Unwrapable] = true;
+                        Attributes[AttributesUniform.Unwrapable] = true;
                         break;
                     case Attributes1056.TopEffect:
-                        thingType.Attributes[AttributesUniform.TopEffect] = true;
+                        Attributes[AttributesUniform.TopEffect] = true;
                         break;
                     default:
-                        throw new ArgumentException("Unknown flag: " + attr);
+                        ThrowUnknownFlag(attr);
+                        break;
                 }
 
                 lastAttr = previousAttr;

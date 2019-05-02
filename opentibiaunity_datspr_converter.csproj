@@ -71,9 +71,6 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine.AssetBundleModule">
-      <HintPath>external\UnityEngine.AssetBundleModule.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="OpenTibiaUnity\AsyncGraphics.cs" />

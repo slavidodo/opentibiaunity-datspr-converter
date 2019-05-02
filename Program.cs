@@ -99,38 +99,38 @@ namespace OpenTibiaUnity
                 appearance.Flags.DefaultAction = new DefaultAction() { Action = (PlayerAction)oldDefaultActionValue };
             }
 
-            if (thingType.HasAttribute(AttributesUniform.GroundBorder)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[AttributesUniform.GroundBorder];
-            if (thingType.HasAttribute(AttributesUniform.Bottom)) appearance.Flags.Bottom = (bool)thingType.Attributes[AttributesUniform.Bottom];
-            if (thingType.HasAttribute(AttributesUniform.Top)) appearance.Flags.Top = (bool)thingType.Attributes[AttributesUniform.Top];
-            if (thingType.HasAttribute(AttributesUniform.Container)) appearance.Flags.Container = (bool)thingType.Attributes[AttributesUniform.Container];
-            if (thingType.HasAttribute(AttributesUniform.Stackable)) appearance.Flags.Stackable = (bool)thingType.Attributes[AttributesUniform.Stackable];
-            if (thingType.HasAttribute(AttributesUniform.Use)) appearance.Flags.Use = (bool)thingType.Attributes[AttributesUniform.Use];
-            if (thingType.HasAttribute(AttributesUniform.ForceUse)) appearance.Flags.ForceUse = (bool)thingType.Attributes[AttributesUniform.ForceUse];
-            if (thingType.HasAttribute(AttributesUniform.MultiUse)) appearance.Flags.MultiUse = (bool)thingType.Attributes[AttributesUniform.MultiUse];
-            if (thingType.HasAttribute(AttributesUniform.FluidContainer)) appearance.Flags.FluidContainer = (bool)thingType.Attributes[AttributesUniform.FluidContainer];
-            if (thingType.HasAttribute(AttributesUniform.Splash)) appearance.Flags.Splash = (bool)thingType.Attributes[AttributesUniform.Splash];
-            if (thingType.HasAttribute(AttributesUniform.Unpassable)) appearance.Flags.Unpassable = (bool)thingType.Attributes[AttributesUniform.Unpassable];
-            if (thingType.HasAttribute(AttributesUniform.Unmoveable)) appearance.Flags.Unmoveable = (bool)thingType.Attributes[AttributesUniform.Unmoveable];
-            if (thingType.HasAttribute(AttributesUniform.Unsight)) appearance.Flags.Unsight = (bool)thingType.Attributes[AttributesUniform.Unsight];
-            if (thingType.HasAttribute(AttributesUniform.BlockPath)) appearance.Flags.BlockPath = (bool)thingType.Attributes[AttributesUniform.BlockPath];
-            if (thingType.HasAttribute(AttributesUniform.NoMoveAnimation)) appearance.Flags.NoMoveAnimation = (bool)thingType.Attributes[AttributesUniform.NoMoveAnimation];
-            if (thingType.HasAttribute(AttributesUniform.Pickupable)) appearance.Flags.Pickupable = (bool)thingType.Attributes[AttributesUniform.Pickupable];
-            if (thingType.HasAttribute(AttributesUniform.Hangable)) appearance.Flags.Hangable = (bool)thingType.Attributes[AttributesUniform.Hangable];
+            if (thingType.HasAttribute(AttributesUniform.GroundBorder)) appearance.Flags.GroundBorder = true;
+            if (thingType.HasAttribute(AttributesUniform.Bottom)) appearance.Flags.Bottom = true;
+            if (thingType.HasAttribute(AttributesUniform.Top)) appearance.Flags.Top = true;
+            if (thingType.HasAttribute(AttributesUniform.Container)) appearance.Flags.Container = true;
+            if (thingType.HasAttribute(AttributesUniform.Stackable)) appearance.Flags.Stackable = true;
+            if (thingType.HasAttribute(AttributesUniform.Use)) appearance.Flags.Use = true;
+            if (thingType.HasAttribute(AttributesUniform.ForceUse)) appearance.Flags.ForceUse = true;
+            if (thingType.HasAttribute(AttributesUniform.MultiUse)) appearance.Flags.MultiUse = true;
+            if (thingType.HasAttribute(AttributesUniform.FluidContainer)) appearance.Flags.FluidContainer = true;
+            if (thingType.HasAttribute(AttributesUniform.Splash)) appearance.Flags.Splash = true;
+            if (thingType.HasAttribute(AttributesUniform.Unpassable)) appearance.Flags.Unpassable = true;
+            if (thingType.HasAttribute(AttributesUniform.Unmoveable)) appearance.Flags.Unmoveable = true;
+            if (thingType.HasAttribute(AttributesUniform.Unsight)) appearance.Flags.Unsight = true;
+            if (thingType.HasAttribute(AttributesUniform.BlockPath)) appearance.Flags.BlockPath = true;
+            if (thingType.HasAttribute(AttributesUniform.NoMoveAnimation)) appearance.Flags.NoMoveAnimation = true;
+            if (thingType.HasAttribute(AttributesUniform.Pickupable)) appearance.Flags.Pickupable = true;
+            if (thingType.HasAttribute(AttributesUniform.Hangable)) appearance.Flags.Hangable = true;
 
             // can have only one hook //
             if (thingType.HasAttribute(AttributesUniform.HookSouth)) appearance.Flags.Hook = new Hook() { Type = HookType.South };
             else if (thingType.HasAttribute(AttributesUniform.HookEast)) appearance.Flags.Hook = new Hook() { Type = HookType.East };
 
-            if (thingType.HasAttribute(AttributesUniform.Rotateable)) appearance.Flags.Rotateable = (bool)thingType.Attributes[AttributesUniform.Rotateable];
-            if (thingType.HasAttribute(AttributesUniform.DontHide)) appearance.Flags.DontHide = (bool)thingType.Attributes[AttributesUniform.DontHide];
-            if (thingType.HasAttribute(AttributesUniform.Translucent)) appearance.Flags.Translucent = (bool)thingType.Attributes[AttributesUniform.Translucent];
-            if (thingType.HasAttribute(AttributesUniform.LyingCorpse)) appearance.Flags.LyingCorpse = (bool)thingType.Attributes[AttributesUniform.LyingCorpse];
-            if (thingType.HasAttribute(AttributesUniform.AnimateAlways)) appearance.Flags.AnimateAlways = (bool)thingType.Attributes[AttributesUniform.AnimateAlways];
-            if (thingType.HasAttribute(AttributesUniform.FullGround)) appearance.Flags.FullGround = (bool)thingType.Attributes[AttributesUniform.FullGround];
-            if (thingType.HasAttribute(AttributesUniform.Look)) appearance.Flags.Look = (bool)thingType.Attributes[AttributesUniform.Look];
-            if (thingType.HasAttribute(AttributesUniform.Wrapable)) appearance.Flags.Wrapable = (bool)thingType.Attributes[AttributesUniform.Wrapable];
-            if (thingType.HasAttribute(AttributesUniform.Unwrapable)) appearance.Flags.GroundBorder = (bool)thingType.Attributes[AttributesUniform.Unwrapable];
-            if (thingType.HasAttribute(AttributesUniform.TopEffect)) appearance.Flags.TopEffect = (bool)thingType.Attributes[AttributesUniform.TopEffect];
+            if (thingType.HasAttribute(AttributesUniform.Rotateable)) appearance.Flags.Rotateable = true;
+            if (thingType.HasAttribute(AttributesUniform.DontHide)) appearance.Flags.DontHide = true;
+            if (thingType.HasAttribute(AttributesUniform.Translucent)) appearance.Flags.Translucent = true;
+            if (thingType.HasAttribute(AttributesUniform.LyingCorpse)) appearance.Flags.LyingCorpse = true;
+            if (thingType.HasAttribute(AttributesUniform.AnimateAlways)) appearance.Flags.AnimateAlways = true;
+            if (thingType.HasAttribute(AttributesUniform.FullGround)) appearance.Flags.FullGround = true;
+            if (thingType.HasAttribute(AttributesUniform.Look)) appearance.Flags.Look = true;
+            if (thingType.HasAttribute(AttributesUniform.Wrapable)) appearance.Flags.Wrapable = true;
+            if (thingType.HasAttribute(AttributesUniform.Unwrapable)) appearance.Flags.GroundBorder = true;
+            if (thingType.HasAttribute(AttributesUniform.TopEffect)) appearance.Flags.TopEffect = true;
 
             if (thingType.HasAttribute(AttributesUniform.Light)) {
                 var lightInfo = (Core.Sprites.LightInfo)thingType.Attributes[AttributesUniform.Light];
@@ -144,8 +144,8 @@ namespace OpenTibiaUnity
             if (thingType.HasAttribute(AttributesUniform.Offset)) {
                 var displacement = (Core.Sprites.Vector2Int)thingType.Attributes[AttributesUniform.Offset];
                 appearance.Flags.Displacement = new Displacement() {
-                    X = (uint)displacement.x,
-                    Y = (uint)displacement.y,
+                    X = displacement.x,
+                    Y = displacement.y,
                 };
             }
 
@@ -153,7 +153,7 @@ namespace OpenTibiaUnity
                 var Market = (Core.Sprites.MarketData)thingType.Attributes[AttributesUniform.Market];
 
                 appearance.Flags.Market = new MarketInfo() {
-                    Category = (uint)Market.category,
+                    Category = Market.category,
                     TradeAs = Market.tradeAs,
                     ShowAs = Market.showAs,
                     Name = Market.name,
@@ -204,11 +204,11 @@ namespace OpenTibiaUnity
         /// Loads tibia.dat and generates new a list of appearances
         /// </summary>
         /// <param name="datFile">the attributes file (tibia.dat)</param>
-        /// <param name="version">the client version of this dat</param>
+        /// <param name="clientVersion">the client version of this dat</param>
         /// <returns></returns>
-        static Appearances GenerateAppearances(string datFile, int version) {
+        static Appearances GenerateAppearances(string datFile, int clientVersion) {
             try {
-                Core.Sprites.ContentData datParser = new Core.Sprites.ContentData(File.ReadAllBytes(datFile), version);
+                Core.Sprites.ContentData datParser = new Core.Sprites.ContentData(File.ReadAllBytes(datFile), clientVersion);
                 datParser.Parse();
 
                 Appearances appearances = new Appearances();
@@ -276,7 +276,7 @@ namespace OpenTibiaUnity
             if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x + 32, y + 32, 32, 32);
         }
 
-        static void InternalSaveStaticBitmaps(RepeatedField<uint> sprites, DrawBitmapsDelegate drawFunc, int layers, int spriteType, int localStart, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
+        static void InternalSaveStaticBitmaps(RepeatedField<uint> sprites, DrawBitmapsDelegate drawFunc, int layers, int spriteType, int localStart, Core.Sprites.ContentSprites sprParser, int dX, int dY, int clientVersion) {
             int singleSize = dX * dY;
 
             AsyncGraphics gfx = new AsyncGraphics(new Bitmap(SEGMENT_DIMENTION, SEGMENT_DIMENTION));
@@ -294,7 +294,7 @@ namespace OpenTibiaUnity
 
                 if (y >= SEGMENT_DIMENTION) {
                     filename = string.Format("sprites-{0}-{1}.png", localStart, localStart + (BITMAP_SIZE / singleSize) - 1);
-                    tasks.Add(gfx.SaveAndDispose(Path.Combine("sprites", filename)));
+                    tasks.Add(gfx.SaveAndDispose(Path.Combine(clientVersion.ToString() + "/sprites", filename)));
                     
                     jsonTokens.Add(new SpritesToken() {
                         file = filename,
@@ -329,7 +329,7 @@ namespace OpenTibiaUnity
             // save the last gfx
             int end = localStart + z;
             filename = string.Format("sprites-{0}-{1}.png", localStart, end - 1);
-            tasks.Add(gfx.SaveAndDispose(Path.Combine("sprites", filename)));
+            tasks.Add(gfx.SaveAndDispose(Path.Combine(clientVersion.ToString(), "sprites", filename)));
             
             jsonTokens.Add(new SpritesToken() {
                 file = filename,
@@ -339,7 +339,7 @@ namespace OpenTibiaUnity
             });
         }
 
-        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, Core.Sprites.ContentSprites sprParser, int dX, int dY) {
+        static void SaveStaticBitmaps(RepeatedField<uint> sprites, ref int start, Core.Sprites.ContentSprites sprParser, int dX, int dY, int clientVersion) {
             DrawBitmapsDelegate drawFunc;
             int layers = 0;
             int spritetype = 1;
@@ -368,7 +368,7 @@ namespace OpenTibiaUnity
             int localStart = start;
             start += sprites.Count / layers;
 
-            tasks.Add(Task.Run(() => InternalSaveStaticBitmaps(sprites, drawFunc, layers, spritetype, localStart, sprParser, dX, dY)));
+            tasks.Add(Task.Run(() => InternalSaveStaticBitmaps(sprites, drawFunc, layers, spritetype, localStart, sprParser, dX, dY, clientVersion)));
         }
 
         static void DeployNewSprites(uint id, FrameGroup frameGroup, int layer) {
@@ -436,59 +436,17 @@ namespace OpenTibiaUnity
             foreach (var a in frameGroups[3]) DeployNewSprites(ids[3][h++], a, 4);
         }
 
-        static void SaveSprites(RepeatedField<Appearance> appearances, ref int start, Core.Sprites.ContentSprites sprParser) {
+        static void SaveSprites(RepeatedField<Appearance> appearances, ref int start, Core.Sprites.ContentSprites sprParser, int clientVersion) {
             RepeatedField<uint>[] sortedFrameGroups = new RepeatedField<uint>[4];
             for (int i = 0; i < 4; i++) sortedFrameGroups[i] = new RepeatedField<uint>();
             DeploySprites(appearances, sortedFrameGroups);
-            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32);
-            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64);
-            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32);
-            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64);
-        }
-
-        static void GenerateEverything(string datfile, string sprfile, int clientVersion, bool useAlpha) {
-            // generating new appearances
-            Appearances appearances = GenerateAppearances(datfile, clientVersion);
-
-            // creating the sprites folder to save files in.
-            Directory.CreateDirectory("sprites");
-
-            // loading tibia.spr into chunks
-            Core.Sprites.ContentSprites sprParser;
-            try {
-                var bytes = File.ReadAllBytes(sprfile);
-                sprParser = new Core.Sprites.ContentSprites(bytes, useAlpha);
-                sprParser.Parse(clientVersion);
-            } catch (Exception e) {
-                Console.WriteLine(e.Message + '\n' + e.StackTrace);
-                Environment.Exit(0);
-                return;
-            }
-
-            int start = 0;
-            SaveSprites(appearances.Outfits, ref start, sprParser);
-            SaveSprites(appearances.Effects, ref start, sprParser);
-            SaveSprites(appearances.Missles, ref start, sprParser);
-            SaveSprites(appearances.Objects, ref start, sprParser);
-
-            Task.WaitAll(tasks.ToArray());
-
-            // saving appearances.dat (with the respective version)
-            using (FileStream file = File.Create("appearances.dat")) {
-                appearances.WriteTo(file);
-            }
             
-            // saving spritesheets information (catalog-content)
-            using (FileStream file = File.Create("catalog-content.json")) {
-                jsonTokens.Sort(ITokenItemSort);
-                foreach (var token in jsonTokens) {
-                    catalogJson.Add(token.GetJObject());
-                }
-
-                string str = catalogJson.ToString();
-                file.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
-            }
+            SaveStaticBitmaps(sortedFrameGroups[0], ref start, sprParser, 32, 32, clientVersion);
+            SaveStaticBitmaps(sortedFrameGroups[1], ref start, sprParser, 32, 64, clientVersion);
+            SaveStaticBitmaps(sortedFrameGroups[2], ref start, sprParser, 64, 32, clientVersion);
+            SaveStaticBitmaps(sortedFrameGroups[3], ref start, sprParser, 64, 64, clientVersion);
         }
+
 
         private static int ITokenItemSort(ITokenItem x, ITokenItem y) {
             if (x is AppearancesToken)
@@ -501,39 +459,124 @@ namespace OpenTibiaUnity
             return a.firstspriteid.CompareTo(b.firstspriteid);
         }
 
+
+        static void GenerateEverything(int clientVersion, bool useAlpha) {
+            // generating new appearances
+            string datFile = clientVersion.ToString() + "/Tibia.dat";
+            string sprFile = clientVersion.ToString() + "/Tibia.spr";
+            if (!File.Exists(datFile) || !File.Exists(sprFile)) {
+                Console.WriteLine("Tibia.dat or Tibia.spr doesn't exist");
+                Environment.Exit(0);
+                return;
+            }
+
+            Appearances appearances = GenerateAppearances(datFile, clientVersion);
+            
+            // loading tibia.spr into chunks
+            Core.Sprites.ContentSprites sprParser;
+            try {
+                var bytes = File.ReadAllBytes(sprFile);
+                sprParser = new Core.Sprites.ContentSprites(bytes, clientVersion, useAlpha);
+                sprParser.Parse();
+            } catch (Exception e) {
+                Console.WriteLine(e.Message + '\n' + e.StackTrace);
+                Environment.Exit(0);
+                return;
+            }
+
+            Directory.CreateDirectory(clientVersion + "/sprites");
+
+            int start = 0;
+            SaveSprites(appearances.Outfits, ref start, sprParser, clientVersion);
+            SaveSprites(appearances.Effects, ref start, sprParser, clientVersion);
+            SaveSprites(appearances.Missles, ref start, sprParser, clientVersion);
+            SaveSprites(appearances.Objects, ref start, sprParser, clientVersion);
+
+            Task.WaitAll(tasks.ToArray());
+
+            // saving appearances.dat (with the respective version)
+            using (FileStream file = File.Create(clientVersion + "/appearances.dat")) {
+                appearances.WriteTo(file);
+            }
+            
+            // saving spritesheets information (catalog-content)
+            using (FileStream file = File.Create(clientVersion + "/catalog-content.json")) {
+                jsonTokens.Sort(ITokenItemSort);
+                foreach (var token in jsonTokens) {
+                    catalogJson.Add(token.GetJObject());
+                }
+
+                string str = catalogJson.ToString();
+                file.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
+            }
+        }
+
+        static void ConvertClientVersion(int fromVersion, int toVersion, bool useAlpha) {
+            string datFile = fromVersion.ToString() + "/Tibia.dat";
+            string sprFile = fromVersion.ToString() + "/Tibia.spr";
+            if (!File.Exists(datFile) || !File.Exists(sprFile)) {
+                Console.WriteLine("Tibia.dat or Tibia.spr doesn't exist");
+                Environment.Exit(0);
+                return;
+            }
+
+            Directory.CreateDirectory(toVersion.ToString());
+            string newDatFile = toVersion.ToString() + "/Tibia.dat";
+            string newSprFile = toVersion.ToString() + "/Tibia.spr";
+            
+            var datParser = new Core.Sprites.ContentData(File.ReadAllBytes(datFile), fromVersion);
+            datParser.Parse();
+
+            byte[] result = datParser.ConvertTo(toVersion);
+            File.WriteAllBytes(newDatFile, result);
+
+            var sprParser = new Core.Sprites.ContentSprites(File.ReadAllBytes(sprFile), fromVersion, useAlpha);
+            sprParser.Parse();
+
+            result = sprParser.ConvertTo(toVersion);
+            File.WriteAllBytes(newSprFile, result);
+
+            Console.WriteLine("Convertion Successfull to " + toVersion + ".");
+        }
+
         static void Main(string[] args) {
             // todo: this class must be cleaned
             /* todo: introduce semaphores to limit the maximum concurrent threads
              * to avoid intense cpu usage */ 
 
-            string datFile = null;
-            string sprFile = null;
             int clientVersion = -1;
+            int convertTo = -1;
             bool useAlpha = false;
             foreach (var arg in args) {
-                if (arg.StartsWith("--dat=")) {
-                    datFile = arg.Substring(6);
-                    Console.WriteLine("Dat: " + datFile);
-                } else if (arg.StartsWith("--spr=")) {
-                    sprFile = arg.Substring(6);
-                    Console.WriteLine("Spr: " + sprFile);
-                } else if (arg.StartsWith("--version=")) {
-                    Console.WriteLine("Version: " + arg.Substring(10));
+                if (arg.StartsWith("--version=")) {
                     clientVersion = int.Parse(arg.Substring(10));
                 } else if (arg.StartsWith("--alpha=")) {
                     var boolstr = arg.Substring(8).ToLower();
                     useAlpha = boolstr == "y" || boolstr == "yes" || boolstr == "true" || boolstr == "1";
+                } else if (arg.StartsWith("--convert-to=")) {
+                    convertTo = int.Parse(arg.Substring(13));
+                } else {
+                    Console.WriteLine("Invalid Attribute: " + arg);
+                    return;
                 }
             }
 
-            if (datFile == null || sprFile == null || clientVersion == -1) {
-                Console.WriteLine("Invalid parameters, you should add sprites, dat files & client version.");
+            if (clientVersion == -1) {
+                Console.WriteLine("Invalid client version.");
                 return;
             }
 
+            Console.WriteLine("Loading version: " + clientVersion);
+            
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            GenerateEverything(datFile, sprFile, clientVersion, useAlpha);
+
+            if (convertTo != -1) {
+                Console.WriteLine("Converting to: " + convertTo);
+                ConvertClientVersion(clientVersion, convertTo, useAlpha);
+            } else {
+                GenerateEverything(clientVersion, useAlpha);
+            }
 
             watch.Stop();
             

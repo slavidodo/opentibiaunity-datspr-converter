@@ -248,7 +248,12 @@ namespace OpenTibiaUnity.Core.Net
             m_Position += num;
         }
 
-        public List<Byte> GetBuffer() {
+        public void AddBytes(byte[] bytes) {
+            m_Buffer.AddRange(bytes);
+            m_Position += bytes.Length;
+        }
+
+        public List<byte> GetBuffer() {
             return m_Buffer;
         }
 

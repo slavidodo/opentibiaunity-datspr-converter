@@ -39,7 +39,7 @@
         public const byte Market = 34;
         public const byte DefaultAction = 35;
         public const byte Wrapable = 36; // 1092
-        public const byte Unwrapable = 37;
+        public const byte Unwrapable = 37; // 1092
         public const byte TopEffect = 38; // 1093
 
         public const byte Use = 254;
