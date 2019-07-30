@@ -56,11 +56,14 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Google.Protobuf, Version=3.6.0.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
-      <HintPath>packages\net45\Google.Protobuf.dll</HintPath>
+    <Reference Include="Google.Protobuf, Version=3.8.0.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
+      <HintPath>packages\Google.Protobuf.3.8.0\lib\net45\Google.Protobuf.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="SevenZip, Version=18.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\LZMA-SDK.18.1.0\lib\net20\SevenZip.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -74,6 +77,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="OpenTibiaUnity\AsyncGraphics.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Converter\IConverter.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Converter\LegacyConverter.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Converter\ProtobufConverter.cs" />
     <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes1056.cs" />
     <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes730.cs" />
     <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes750.cs" />
@@ -81,14 +87,18 @@
     <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes854.cs" />
     <Compile Include="OpenTibiaUnity\Core\Metaflags\Attributes986.cs" />
     <Compile Include="OpenTibiaUnity\Core\Metaflags\AttributesUniform.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Net\NetworkMessage.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Sprites\ContentData.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Sprites\ContentSprites.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Sprites\FrameGroup.cs" />
-    <Compile Include="OpenTibiaUnity\Core\Sprites\ThingType.cs" />
-    <Compile Include="OpenTibiaUnity\Proto\Appearances\Appearances.cs" />
+    <Compile Include="OpenTibiaUnity\Core\IO\BinaryStream.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Assets\ContentData.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Assets\ContentSprites.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Assets\FrameGroup.cs" />
+    <Compile Include="OpenTibiaUnity\Core\Assets\ThingType.cs" />
+    <Compile Include="OpenTibiaUnity\LimitedConcurrencyLevelTaskScheduler.cs" />
+    <Compile Include="OpenTibiaUnity\Protobuf\Appearances\Appearances.cs" />
+    <Compile Include="OpenTibiaUnity\Protobuf\Appearances\Shared.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Tibia\Protobuf\Appearances.cs" />
+    <Compile Include="Tibia\Protobuf\Shared.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

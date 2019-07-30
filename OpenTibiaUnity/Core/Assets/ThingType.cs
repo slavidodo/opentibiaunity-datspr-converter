@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace OpenTibiaUnity.Core.Sprites
+namespace OpenTibiaUnity.Core.Assets
 {
-    public class LightInfo
+    public class Light
     {
         public ushort intensity = 0;
         public ushort color = 0;
@@ -39,7 +39,7 @@ namespace OpenTibiaUnity.Core.Sprites
             return Attributes.TryGetValue(attr, out object _);
         }
 
-        public void Serialize(Net.OutputMessage binaryWriter, int fromVersion, int newVersion) {
+        public void Serialize(IO.BinaryStream binaryWriter, int fromVersion, int newVersion) {
             if (newVersion <= 730)
                 Serialize730(binaryWriter);
             else if (newVersion <= 750)
@@ -69,32 +69,32 @@ namespace OpenTibiaUnity.Core.Sprites
                 } else {
                     // current uses phases, newer uses frame groups
                     if (FrameGroups[0].Phases == 1 || HasAttribute(AttributesUniform.AnimateAlways)) {
-                        binaryWriter.AddU8(1);
-                        binaryWriter.AddU8((int)FrameGroupType.Idle);
+                        binaryWriter.WriteUnsignedByte(1);
+                        binaryWriter.WriteUnsignedByte((int)FrameGroupType.Idle);
                         FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, FrameGroups[0].Phases);
                         return;
                     }
 
-                    binaryWriter.AddU8(2);
-                    binaryWriter.AddU8((int)FrameGroupType.Idle);
+                    binaryWriter.WriteUnsignedByte(2);
+                    binaryWriter.WriteUnsignedByte((int)FrameGroupType.Idle);
                     FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 0, 1);
-                    binaryWriter.AddU8((int)FrameGroupType.Idle);
+                    binaryWriter.WriteUnsignedByte((int)FrameGroupType.Idle);
                     FrameGroups[0].Serialize(this, binaryWriter, fromVersion, newVersion, 1, (byte)(FrameGroups[0].Phases - 1));
                 }
             } else {
                 if (newVersion < 1057) {
                     throw new Exception("It's not possible to convert a client >= 1057 to a client < 1057");
                 } else {
-                    binaryWriter.AddU8((byte)FrameGroups.Count);
+                    binaryWriter.WriteUnsignedByte((byte)FrameGroups.Count);
                     foreach (var pair in FrameGroups) {
-                        binaryWriter.AddU8((byte)pair.Key);
+                        binaryWriter.WriteUnsignedByte((byte)pair.Key);
                         pair.Value.Serialize(this, binaryWriter, fromVersion, newVersion, 0, pair.Value.Phases);
                     }
                 }
             }
         }
 
-        public void Unserialize(Net.InputMessage binaryReader, int clientVersion) {
+        public void Unserialize(IO.BinaryStream binaryReader, int clientVersion) {
             int lastAttr = 0, previousAttr = 0, attr = 0;
             bool done;
             try {
@@ -118,11 +118,11 @@ namespace OpenTibiaUnity.Core.Sprites
                 throw new Exception("Couldn't parse thing [category: " + Category + ", ID: " + ID + "].");
             
             bool hasFrameGroups = Category == ThingCategory.Creature && clientVersion >= 1057;
-            byte groupCount = hasFrameGroups ? binaryReader.GetU8() : (byte)1U;
+            byte groupCount = hasFrameGroups ? binaryReader.ReadUnsignedByte() : (byte)1U;
             for (int i = 0; i < groupCount; i++) {
                 FrameGroupType groupType = FrameGroupType.Default;
                 if (hasFrameGroups)
-                    groupType = (FrameGroupType)binaryReader.GetU8();
+                    groupType = (FrameGroupType)binaryReader.ReadUnsignedByte();
 
                 FrameGroup frameGroup = new FrameGroup();
                 frameGroup.Unserialize(binaryReader, clientVersion);
@@ -134,107 +134,107 @@ namespace OpenTibiaUnity.Core.Sprites
             throw new ArgumentException(string.Format("Unknown flag (ID = {0}, Category = {1}): {2}", ID, Category, attr));
         }
 
-        private void Serialize730(Net.OutputMessage binaryWriter) {
+        private void Serialize730(IO.BinaryStream binaryWriter) {
             foreach (var pair in Attributes) {
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes730.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes730.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes730.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes730.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes730.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Stackable);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes730.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes730.MultiUse);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes730.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes730.ForceUse);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes730.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes730.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes730.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes730.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes730.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes730.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes730.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes730.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes730.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes730.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes730.BlockPath);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes730.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Pickupable);
                         break;
                     case AttributesUniform.Light:
-                        binaryWriter.AddU8(Attributes730.Light);
-                        LightInfo data = (LightInfo)pair.Value;
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Light);
+                        Light data = (Light)pair.Value;
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.FloorChange:
-                        binaryWriter.AddU8(Attributes730.FloorChange);
+                        binaryWriter.WriteUnsignedByte(Attributes730.FloorChange);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes730.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes730.FullGround);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes730.FullGround);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes730.FullGround);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Offset:
-                        binaryWriter.AddU8(Attributes730.Offset);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Offset);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes730.MinimapColor);
+                        binaryWriter.WriteUnsignedByte(Attributes730.MinimapColor);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes730.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes730.Rotateable);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes730.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes730.LyingCorpse);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes730.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes730.AnimateAlways);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes730.AnimateAlways);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes730.AnimateAlways);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                 }
             }
 
-            binaryWriter.AddU8(Attributes730.Last);
+            binaryWriter.WriteUnsignedByte(Attributes730.Last);
         }
 
-        private bool Unserialize730(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize730(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes730.Last) {
                 switch (attr) {
                     case Attributes730.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes730.Bottom:
                         Attributes[AttributesUniform.Bottom] = true;
@@ -255,10 +255,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes730.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes730.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes730.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -282,9 +282,9 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes730.Light:
-                        LightInfo data = new LightInfo();
-                        data.intensity = binaryReader.GetU16();
-                        data.color = binaryReader.GetU16();
+                        Light data = new Light();
+                        data.intensity = binaryReader.ReadUnsignedShort();
+                        data.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes730.FloorChange:
@@ -294,13 +294,13 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes730.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes730.Offset:
                         Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
                         break;
                     case Attributes730.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes730.Rotateable:
                         Attributes[AttributesUniform.Rotateable] = true;
@@ -312,7 +312,7 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes730.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
 
                     default:
@@ -322,110 +322,110 @@ namespace OpenTibiaUnity.Core.Sprites
 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;
         }
 
-        private void Serialize750(Net.OutputMessage binaryWriter) {
+        private void Serialize750(IO.BinaryStream binaryWriter) {
             foreach (var pair in Attributes) {
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes750.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes750.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes750.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes750.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes750.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Stackable);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes750.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes750.MultiUse);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes750.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes750.ForceUse);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes750.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes750.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes750.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes750.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes750.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes750.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes750.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes750.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes750.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes750.BlockPath);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes750.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Pickupable);
                         break;
                     case AttributesUniform.Light:
-                        var data = (LightInfo)Attributes[AttributesUniform.Light];
-                        binaryWriter.AddU8(Attributes750.Light);
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        var data = (Light)Attributes[AttributesUniform.Light];
+                        binaryWriter.WriteUnsignedByte(Attributes750.Light);
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.FloorChange:
-                        binaryWriter.AddU8(Attributes750.FloorChange);
+                        binaryWriter.WriteUnsignedByte(Attributes750.FloorChange);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes750.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes750.FullGround);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes750.Elevation);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Elevation);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Offset:
-                        binaryWriter.AddU8(Attributes750.Offset);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Offset);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes750.MinimapColor);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.MinimapColor);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes750.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Rotateable);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes750.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes750.LyingCorpse);
                         break;
                     case AttributesUniform.Hangable:
-                        binaryWriter.AddU8(Attributes750.Hangable);
+                        binaryWriter.WriteUnsignedByte(Attributes750.Hangable);
                         break;
                     case AttributesUniform.HookSouth:
-                        binaryWriter.AddU8(Attributes750.HookSouth);
+                        binaryWriter.WriteUnsignedByte(Attributes750.HookSouth);
                         break;
                     case AttributesUniform.HookEast:
-                        binaryWriter.AddU8(Attributes750.HookEast);
+                        binaryWriter.WriteUnsignedByte(Attributes750.HookEast);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes750.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes750.AnimateAlways);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes750.LensHelp);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes750.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
 
                     default:
@@ -433,15 +433,15 @@ namespace OpenTibiaUnity.Core.Sprites
                 }
             }
 
-            binaryWriter.AddU8(Attributes750.Last);
+            binaryWriter.WriteUnsignedByte(Attributes750.Last);
         }
 
-        private bool Unserialize750(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize750(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes750.Last) {
                 switch (attr) {
                     case Attributes750.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes750.Bottom:
                         Attributes[AttributesUniform.Bottom] = true;
@@ -462,10 +462,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes750.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes750.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes750.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -489,9 +489,9 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Pickupable] = true;
                         break;
                     case Attributes750.Light:
-                        LightInfo data = new LightInfo();
-                        data.intensity = binaryReader.GetU16();
-                        data.color = binaryReader.GetU16();
+                        Light data = new Light();
+                        data.intensity = binaryReader.ReadUnsignedShort();
+                        data.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes750.FloorChange:
@@ -501,13 +501,13 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.FullGround] = true;
                         break;
                     case Attributes750.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes750.Offset:
                         Attributes[AttributesUniform.Offset] = new Vector2Int(8, 8);
                         break;
                     case Attributes750.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes750.Rotateable:
                         Attributes[AttributesUniform.Rotateable] = true;
@@ -528,7 +528,7 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes750.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
 
                     default:
@@ -538,129 +538,129 @@ namespace OpenTibiaUnity.Core.Sprites
 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;
         }
 
-        private void Serialize772(Net.OutputMessage binaryWriter) {
+        private void Serialize772(IO.BinaryStream binaryWriter) {
             foreach (var pair in Attributes) {
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes772.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.GroundBorder:
-                        binaryWriter.AddU8(Attributes772.GroundBorder);
+                        binaryWriter.WriteUnsignedByte(Attributes772.GroundBorder);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes772.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes772.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes772.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes772.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Stackable);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes772.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes772.MultiUse);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes772.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes772.ForceUse);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes772.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes772.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes772.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes772.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes772.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes772.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes772.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes772.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes772.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes772.BlockPath);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes772.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Pickupable);
                         break;
                     case AttributesUniform.Hangable:
-                        binaryWriter.AddU8(Attributes772.Hangable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Hangable);
                         break;
                     case AttributesUniform.HookSouth:
-                        binaryWriter.AddU8(Attributes772.HookSouth);
+                        binaryWriter.WriteUnsignedByte(Attributes772.HookSouth);
                         break;
                     case AttributesUniform.HookEast:
-                        binaryWriter.AddU8(Attributes772.HookEast);
+                        binaryWriter.WriteUnsignedByte(Attributes772.HookEast);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes772.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Rotateable);
                         break;
                     case AttributesUniform.Light:
-                        var data = (LightInfo)pair.Value;
-                        binaryWriter.AddU8(Attributes772.LensHelp);
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        var data = (Light)pair.Value;
+                        binaryWriter.WriteUnsignedByte(Attributes772.LensHelp);
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.FloorChange:
-                        binaryWriter.AddU8(Attributes772.FloorChange);
+                        binaryWriter.WriteUnsignedByte(Attributes772.FloorChange);
                         break;
                     case AttributesUniform.Offset:
                         var offset = (Vector2Int)pair.Value;
-                        binaryWriter.AddU8(Attributes772.LensHelp);
-                        binaryWriter.AddU16((ushort)offset.x);
-                        binaryWriter.AddU16((ushort)offset.y);
+                        binaryWriter.WriteUnsignedByte(Attributes772.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)offset.x);
+                        binaryWriter.WriteUnsignedShort((ushort)offset.y);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes772.Elevation);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.Elevation);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes772.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes772.LyingCorpse);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes772.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes772.AnimateAlways);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes772.MinimapColor);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.MinimapColor);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes772.LensHelp);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes772.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes772.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes772.FullGround);
                         break;
                 }
             }
 
-            binaryWriter.AddU8(Attributes772.Last);
+            binaryWriter.WriteUnsignedByte(Attributes772.Last);
         }
 
-        private bool Unserialize772(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize772(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes772.Last) {
                 switch (attr) {
                     case Attributes772.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.GroundBorder:
                         Attributes[AttributesUniform.GroundBorder] = true;
@@ -684,10 +684,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.ForceUse] = true;
                         break;
                     case Attributes772.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -723,21 +723,21 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes772.Light:
-                        LightInfo data = new LightInfo();
-                        data.intensity = binaryReader.GetU16();
-                        data.color = binaryReader.GetU16();
+                        Light data = new Light();
+                        data.intensity = binaryReader.ReadUnsignedShort();
+                        data.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes772.FloorChange:
                         Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes772.Offset:
-                        ushort offsetX = binaryReader.GetU16();
-                        ushort offsetY = binaryReader.GetU16();
+                        ushort offsetX = binaryReader.ReadUnsignedShort();
+                        ushort offsetY = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes772.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.LyingCorpse:
                         Attributes[AttributesUniform.LyingCorpse] = true;
@@ -746,10 +746,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes772.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes772.FullGround:
                         Attributes[AttributesUniform.FullGround] = true;
@@ -760,137 +760,137 @@ namespace OpenTibiaUnity.Core.Sprites
                 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;
         }
 
-        private void Serialize854(Net.OutputMessage binaryWriter) {
+        private void Serialize854(IO.BinaryStream binaryWriter) {
             foreach (var pair in Attributes) {
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes854.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.GroundBorder:
-                        binaryWriter.AddU8(Attributes854.GroundBorder);
+                        binaryWriter.WriteUnsignedByte(Attributes854.GroundBorder);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes854.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes854.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes854.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes854.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Stackable);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes854.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes854.ForceUse);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes854.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes854.MultiUse);
                         break;
                     case AttributesUniform.Charges:
-                        binaryWriter.AddU8(Attributes854.Charges);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Charges);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes854.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes854.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes854.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes854.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes854.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes854.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes854.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes854.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes854.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes854.BlockPath);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes854.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Pickupable);
                         break;
                     case AttributesUniform.Hangable:
-                        binaryWriter.AddU8(Attributes854.Hangable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Hangable);
                         break;
                     case AttributesUniform.HookSouth:
-                        binaryWriter.AddU8(Attributes854.HookSouth);
+                        binaryWriter.WriteUnsignedByte(Attributes854.HookSouth);
                         break;
                     case AttributesUniform.HookEast:
-                        binaryWriter.AddU8(Attributes854.HookEast);
+                        binaryWriter.WriteUnsignedByte(Attributes854.HookEast);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes854.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Rotateable);
                         break;
                     case AttributesUniform.Light:
-                        var data = (LightInfo)pair.Value;
-                        binaryWriter.AddU8(Attributes854.Light);
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        var data = (Light)pair.Value;
+                        binaryWriter.WriteUnsignedByte(Attributes854.Light);
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.DontHide:
-                        binaryWriter.AddU8(Attributes854.DontHide);
+                        binaryWriter.WriteUnsignedByte(Attributes854.DontHide);
                         break;
                     case AttributesUniform.FloorChange:
-                        binaryWriter.AddU8(Attributes854.FloorChange);
+                        binaryWriter.WriteUnsignedByte(Attributes854.FloorChange);
                         break;
                     case AttributesUniform.Offset:
                         var offset = (Vector2Int)pair.Value;
-                        binaryWriter.AddU8(Attributes854.Light);
-                        binaryWriter.AddU16(offset.x);
-                        binaryWriter.AddU16(offset.y);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Light);
+                        binaryWriter.WriteUnsignedShort(offset.x);
+                        binaryWriter.WriteUnsignedShort(offset.y);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes854.Elevation);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.Elevation);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes854.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes854.LyingCorpse);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes854.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes854.AnimateAlways);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes854.MinimapColor);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.MinimapColor);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes854.LensHelp);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes854.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes854.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes854.FullGround);
                         break;
                     default:
                         break;
                 }
             }
 
-            binaryWriter.AddU8(Attributes854.Last);
+            binaryWriter.WriteUnsignedByte(Attributes854.Last);
         }
 
-        private bool Unserialize854(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize854(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes854.Last) {
                 switch (attr) {
                     case Attributes854.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.GroundBorder:
                         Attributes[AttributesUniform.GroundBorder] = true;
@@ -917,10 +917,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Charges] = true;
                         break;
                     case Attributes854.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -956,9 +956,9 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes854.Light:
-                        LightInfo data = new LightInfo();
-                        data.intensity = binaryReader.GetU16();
-                        data.color = binaryReader.GetU16();
+                        Light data = new Light();
+                        data.intensity = binaryReader.ReadUnsignedShort();
+                        data.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = data;
                         break;
                     case Attributes854.DontHide:
@@ -968,12 +968,12 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.FloorChange] = true;
                         break;
                     case Attributes854.Offset:
-                        ushort offsetX = binaryReader.GetU16();
-                        ushort offsetY = binaryReader.GetU16();
+                        ushort offsetX = binaryReader.ReadUnsignedShort();
+                        ushort offsetY = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes854.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.LyingCorpse:
                         Attributes[AttributesUniform.LyingCorpse] = true;
@@ -982,10 +982,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes854.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes854.FullGround:
                         Attributes[AttributesUniform.FullGround] = true;
@@ -997,151 +997,151 @@ namespace OpenTibiaUnity.Core.Sprites
 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;
         }
 
-        private void Serialize986(Net.OutputMessage binaryWriter) {
+        private void Serialize986(IO.BinaryStream binaryWriter) {
             foreach (var pair in Attributes) {
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes986.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.GroundBorder:
-                        binaryWriter.AddU8(Attributes986.GroundBorder);
+                        binaryWriter.WriteUnsignedByte(Attributes986.GroundBorder);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes986.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes986.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes986.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes986.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Stackable);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes986.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes986.ForceUse);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes986.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes986.MultiUse);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes986.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes986.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes986.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes986.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes986.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes986.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes986.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes986.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes986.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes986.BlockPath);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes986.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Pickupable);
                         break;
                     case AttributesUniform.Hangable:
-                        binaryWriter.AddU8(Attributes986.Hangable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Hangable);
                         break;
                     case AttributesUniform.HookSouth:
-                        binaryWriter.AddU8(Attributes986.HookSouth);
+                        binaryWriter.WriteUnsignedByte(Attributes986.HookSouth);
                         break;
                     case AttributesUniform.HookEast:
-                        binaryWriter.AddU8(Attributes986.HookEast);
+                        binaryWriter.WriteUnsignedByte(Attributes986.HookEast);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes986.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Rotateable);
                         break;
                     case AttributesUniform.Light:
-                        var data = (LightInfo)pair.Value;
-                        binaryWriter.AddU8(Attributes986.Light);
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        var data = (Light)pair.Value;
+                        binaryWriter.WriteUnsignedByte(Attributes986.Light);
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.DontHide:
-                        binaryWriter.AddU8(Attributes986.DontHide);
+                        binaryWriter.WriteUnsignedByte(Attributes986.DontHide);
                         break;
                     case AttributesUniform.Translucent:
-                        binaryWriter.AddU8(Attributes986.Translucent);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Translucent);
                         break;
                     case AttributesUniform.Offset:
                         var offset = (Vector2Int)pair.Value;
-                        binaryWriter.AddU8(Attributes986.Light);
-                        binaryWriter.AddU16(offset.x);
-                        binaryWriter.AddU16(offset.y);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Light);
+                        binaryWriter.WriteUnsignedShort(offset.x);
+                        binaryWriter.WriteUnsignedShort(offset.y);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes986.Elevation);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Elevation);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes986.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes986.LyingCorpse);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes986.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes986.AnimateAlways);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes986.MinimapColor);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.MinimapColor);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes986.LensHelp);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes986.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes986.FullGround);
                         break;
                     case AttributesUniform.Look:
-                        binaryWriter.AddU8(Attributes986.Look);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Look);
                         break;
                     case AttributesUniform.Cloth:
-                        binaryWriter.AddU8(Attributes986.Cloth);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Cloth);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Market:
                         var marketData = (MarketData)pair.Value;
-                        binaryWriter.AddU8(Attributes986.Cloth);
-                        binaryWriter.AddU16(marketData.category);
-                        binaryWriter.AddU16(marketData.tradeAs);
-                        binaryWriter.AddU16(marketData.showAs);
-                        binaryWriter.AddString(marketData.name);
-                        binaryWriter.AddU16(marketData.restrictProfession);
-                        binaryWriter.AddU16(marketData.restrictLevel);
+                        binaryWriter.WriteUnsignedByte(Attributes986.Cloth);
+                        binaryWriter.WriteUnsignedShort(marketData.category);
+                        binaryWriter.WriteUnsignedShort(marketData.tradeAs);
+                        binaryWriter.WriteUnsignedShort(marketData.showAs);
+                        binaryWriter.WriteString(marketData.name);
+                        binaryWriter.WriteUnsignedShort(marketData.restrictProfession);
+                        binaryWriter.WriteUnsignedShort(marketData.restrictLevel);
                         break;
                     default:
                         break;
                 }
             }
 
-            binaryWriter.AddU8(Attributes986.Last);
+            binaryWriter.WriteUnsignedByte(Attributes986.Last);
         }
 
-        private bool Unserialize986(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize986(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes986.Last) {
                 switch (attr) {
                     case Attributes986.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.GroundBorder:
                         Attributes[AttributesUniform.GroundBorder] = true;
@@ -1165,10 +1165,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes986.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -1204,9 +1204,9 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes986.Light:
-                        LightInfo lightData = new LightInfo();
-                        lightData.intensity = binaryReader.GetU16();
-                        lightData.color = binaryReader.GetU16();
+                        Light lightData = new Light();
+                        lightData.intensity = binaryReader.ReadUnsignedShort();
+                        lightData.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = lightData;
                         break;
                     case Attributes986.DontHide:
@@ -1216,12 +1216,12 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes986.Offset:
-                        ushort offsetX = binaryReader.GetU16();
-                        ushort offsetY = binaryReader.GetU16();
+                        ushort offsetX = binaryReader.ReadUnsignedShort();
+                        ushort offsetY = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes986.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.LyingCorpse:
                         Attributes[AttributesUniform.LyingCorpse] = true;
@@ -1230,10 +1230,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes986.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.FullGround:
                         Attributes[AttributesUniform.FullGround] = true;
@@ -1242,16 +1242,16 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Look] = true;
                         break;
                     case Attributes986.Cloth:
-                        Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Cloth] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes986.Market:
                         MarketData marketData = new MarketData();
-                        marketData.category = binaryReader.GetU16();
-                        marketData.tradeAs = binaryReader.GetU16();
-                        marketData.showAs = binaryReader.GetU16();
-                        marketData.name = binaryReader.GetString();
-                        marketData.restrictProfession = binaryReader.GetU16();
-                        marketData.restrictLevel = binaryReader.GetU16();
+                        marketData.category = binaryReader.ReadUnsignedShort();
+                        marketData.tradeAs = binaryReader.ReadUnsignedShort();
+                        marketData.showAs = binaryReader.ReadUnsignedShort();
+                        marketData.name = binaryReader.ReadString();
+                        marketData.restrictProfession = binaryReader.ReadUnsignedShort();
+                        marketData.restrictLevel = binaryReader.ReadUnsignedShort();
 
                         Attributes[AttributesUniform.Market] = marketData;
                         break;
@@ -1262,178 +1262,175 @@ namespace OpenTibiaUnity.Core.Sprites
 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;
         }
 
-        private void Serialize1010(Net.OutputMessage binaryWriter, int clientVersion) {
+        private void Serialize1010(IO.BinaryStream binaryWriter, int clientVersion) {
             foreach (var pair in Attributes) {
                 if (ID == 424 && Category == ThingCategory.Item)
                     Console.WriteLine("Writing: " + pair.Key);
 
                 switch (pair.Key) {
                     case AttributesUniform.Ground:
-                        binaryWriter.AddU8(Attributes1056.Ground);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Ground);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.GroundBorder:
-                        binaryWriter.AddU8(Attributes1056.GroundBorder);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.GroundBorder);
                         break;
                     case AttributesUniform.Bottom:
-                        binaryWriter.AddU8(Attributes1056.Bottom);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Bottom);
                         break;
                     case AttributesUniform.Top:
-                        binaryWriter.AddU8(Attributes1056.Top);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Top);
                         break;
                     case AttributesUniform.Container:
-                        binaryWriter.AddU8(Attributes1056.Container);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Container);
                         break;
                     case AttributesUniform.Stackable:
-                        binaryWriter.AddU8(Attributes1056.Stackable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Stackable);
                         break;
                     case AttributesUniform.ForceUse:
-                        binaryWriter.AddU8(Attributes1056.ForceUse);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.ForceUse);
                         break;
                     case AttributesUniform.MultiUse:
-                        binaryWriter.AddU8(Attributes1056.MultiUse);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.MultiUse);
                         break;
                     case AttributesUniform.Writable:
-                        binaryWriter.AddU8(Attributes1056.Writable);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Writable);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.WritableOnce:
-                        binaryWriter.AddU8(Attributes1056.WritableOnce);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.WritableOnce);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FluidContainer:
-                        binaryWriter.AddU8(Attributes1056.FluidContainer);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.FluidContainer);
                         break;
                     case AttributesUniform.Splash:
-                        binaryWriter.AddU8(Attributes1056.Splash);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Splash);
                         break;
                     case AttributesUniform.Unpassable:
-                        binaryWriter.AddU8(Attributes1056.Unpassable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Unpassable);
                         break;
                     case AttributesUniform.Unmoveable:
-                        binaryWriter.AddU8(Attributes1056.Unmoveable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Unmoveable);
                         break;
                     case AttributesUniform.Unsight:
-                        binaryWriter.AddU8(Attributes1056.Unsight);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Unsight);
                         break;
                     case AttributesUniform.BlockPath:
-                        binaryWriter.AddU8(Attributes1056.BlockPath);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.BlockPath);
                         break;
                     case AttributesUniform.NoMoveAnimation:
-                        binaryWriter.AddU8(Attributes1056.NoMoveAnimation);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.NoMoveAnimation);
                         break;
                     case AttributesUniform.Pickupable:
-                        binaryWriter.AddU8(Attributes1056.Pickupable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Pickupable);
                         break;
                     case AttributesUniform.Hangable:
-                        binaryWriter.AddU8(Attributes1056.Hangable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Hangable);
                         break;
                     case AttributesUniform.HookSouth:
-                        binaryWriter.AddU8(Attributes1056.HookSouth);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.HookSouth);
                         break;
                     case AttributesUniform.HookEast:
-                        binaryWriter.AddU8(Attributes1056.HookEast);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.HookEast);
                         break;
                     case AttributesUniform.Rotateable:
-                        binaryWriter.AddU8(Attributes1056.Rotateable);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Rotateable);
                         break;
                     case AttributesUniform.Light:
-                        var data = (LightInfo)pair.Value;
-                        binaryWriter.AddU8(Attributes1056.Light);
-                        binaryWriter.AddU16(data.intensity);
-                        binaryWriter.AddU16(data.color);
+                        var data = (Light)pair.Value;
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Light);
+                        binaryWriter.WriteUnsignedShort(data.intensity);
+                        binaryWriter.WriteUnsignedShort(data.color);
                         break;
                     case AttributesUniform.DontHide:
-                        binaryWriter.AddU8(Attributes1056.DontHide);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.DontHide);
                         break;
                     case AttributesUniform.Translucent:
-                        binaryWriter.AddU8(Attributes1056.Translucent);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Translucent);
                         break;
                     case AttributesUniform.Offset:
                         var offset = (Vector2Int)pair.Value;
-                        binaryWriter.AddU8(Attributes1056.Offset);
-                        binaryWriter.AddU16(offset.x);
-                        binaryWriter.AddU16(offset.y);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Offset);
+                        binaryWriter.WriteUnsignedShort(offset.x);
+                        binaryWriter.WriteUnsignedShort(offset.y);
                         break;
                     case AttributesUniform.Elevation:
-                        binaryWriter.AddU8(Attributes1056.Elevation);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Elevation);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LyingCorpse:
-                        binaryWriter.AddU8(Attributes1056.LyingCorpse);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.LyingCorpse);
                         break;
                     case AttributesUniform.AnimateAlways:
-                        binaryWriter.AddU8(Attributes1056.AnimateAlways);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.AnimateAlways);
                         break;
                     case AttributesUniform.MinimapColor:
-                        binaryWriter.AddU8(Attributes1056.MinimapColor);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.MinimapColor);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.LensHelp:
-                        binaryWriter.AddU8(Attributes1056.LensHelp);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.LensHelp);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.FullGround:
-                        binaryWriter.AddU8(Attributes1056.FullGround);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.FullGround);
                         break;
                     case AttributesUniform.Look:
-                        binaryWriter.AddU8(Attributes1056.Look);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Look);
                         break;
                     case AttributesUniform.Cloth:
-                        binaryWriter.AddU8(Attributes1056.Cloth);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Cloth);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Market:
                         var marketData = (MarketData)Attributes[AttributesUniform.Market];
 
-                        binaryWriter.AddU8(Attributes1056.Market);
-                        binaryWriter.AddU16(marketData.category);
-                        binaryWriter.AddU16(marketData.tradeAs);
-                        binaryWriter.AddU16(marketData.showAs);
-                        binaryWriter.AddString(marketData.name);
-                        binaryWriter.AddU16(marketData.restrictProfession);
-                        binaryWriter.AddU16(marketData.restrictLevel);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Market);
+                        binaryWriter.WriteUnsignedShort(marketData.category);
+                        binaryWriter.WriteUnsignedShort(marketData.tradeAs);
+                        binaryWriter.WriteUnsignedShort(marketData.showAs);
+                        binaryWriter.WriteString(marketData.name);
+                        binaryWriter.WriteUnsignedShort(marketData.restrictProfession);
+                        binaryWriter.WriteUnsignedShort(marketData.restrictLevel);
                         break;
                     case AttributesUniform.DefaultAction:
-                        binaryWriter.AddU8(Attributes1056.DefaultAction);
-                        binaryWriter.AddU16((ushort)pair.Value);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.DefaultAction);
+                        binaryWriter.WriteUnsignedShort((ushort)pair.Value);
                         break;
                     case AttributesUniform.Use:
-                        binaryWriter.AddU8(Attributes1056.Use);
+                        binaryWriter.WriteUnsignedByte(Attributes1056.Use);
                         break;
                     case AttributesUniform.Wrapable:
                         if (clientVersion >= 1092)
-                            binaryWriter.AddU8(Attributes1056.Wrapable);
+                            binaryWriter.WriteUnsignedByte(Attributes1056.Wrapable);
                         break;
                     case AttributesUniform.Unwrapable:
                         if (clientVersion >= 1092)
-                            binaryWriter.AddU8(Attributes1056.Unwrapable);
+                            binaryWriter.WriteUnsignedByte(Attributes1056.Unwrapable);
                         break;
                     case AttributesUniform.TopEffect:
                         if (clientVersion >= 1093)
-                            binaryWriter.AddU8(Attributes1056.TopEffect);
+                            binaryWriter.WriteUnsignedByte(Attributes1056.TopEffect);
                         break;
                 }
             }
 
-            binaryWriter.AddU8(Attributes1056.Last);
+            binaryWriter.WriteUnsignedByte(Attributes1056.Last);
         }
 
-        private bool Unserialize1010(Net.InputMessage binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
-            attr = binaryReader.GetU8();
+        private bool Unserialize1010(IO.BinaryStream binaryReader, ref int lastAttr, ref int previousAttr, ref int attr) {
+            attr = binaryReader.ReadUnsignedByte();
             while (attr < Attributes1056.Last) {
-                if (ID == 424 && Category == ThingCategory.Item)
-                    Console.WriteLine("Reading: " + attr);
-                
                 switch (attr) {
                     case Attributes1056.Ground:
-                        Attributes[AttributesUniform.Ground] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Ground] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.GroundBorder:
                         Attributes[AttributesUniform.GroundBorder] = true;
@@ -1457,10 +1454,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.MultiUse] = true;
                         break;
                     case Attributes1056.Writable:
-                        Attributes[AttributesUniform.Writable] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Writable] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.WritableOnce:
-                        Attributes[AttributesUniform.WritableOnce] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.WritableOnce] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.FluidContainer:
                         Attributes[AttributesUniform.FluidContainer] = true;
@@ -1499,9 +1496,9 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Rotateable] = true;
                         break;
                     case Attributes1056.Light:
-                        LightInfo lightData = new LightInfo();
-                        lightData.intensity = binaryReader.GetU16();
-                        lightData.color = binaryReader.GetU16();
+                        Light lightData = new Light();
+                        lightData.intensity = binaryReader.ReadUnsignedShort();
+                        lightData.color = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Light] = lightData;
                         break;
                     case Attributes1056.DontHide:
@@ -1511,12 +1508,12 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.DontHide] = true;
                         break;
                     case Attributes1056.Offset:
-                        ushort offsetX = binaryReader.GetU16();
-                        ushort offsetY = binaryReader.GetU16();
+                        ushort offsetX = binaryReader.ReadUnsignedShort();
+                        ushort offsetY = binaryReader.ReadUnsignedShort();
                         Attributes[AttributesUniform.Offset] = new Vector2Int(offsetX, offsetY);
                         break;
                     case Attributes1056.Elevation:
-                        Attributes[AttributesUniform.Elevation] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Elevation] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.LyingCorpse:
                         Attributes[AttributesUniform.LyingCorpse] = true;
@@ -1525,10 +1522,10 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.AnimateAlways] = true;
                         break;
                     case Attributes1056.MinimapColor:
-                        Attributes[AttributesUniform.MinimapColor] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.MinimapColor] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.LensHelp:
-                        Attributes[AttributesUniform.LensHelp] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.LensHelp] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.FullGround:
                         Attributes[AttributesUniform.FullGround] = true;
@@ -1537,21 +1534,21 @@ namespace OpenTibiaUnity.Core.Sprites
                         Attributes[AttributesUniform.Look] = true;
                         break;
                     case Attributes1056.Cloth:
-                        Attributes[AttributesUniform.Cloth] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.Cloth] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.Market:
                         MarketData marketData = new MarketData();
-                        marketData.category = binaryReader.GetU16();
-                        marketData.tradeAs = binaryReader.GetU16();
-                        marketData.showAs = binaryReader.GetU16();
-                        marketData.name = binaryReader.GetString();
-                        marketData.restrictProfession = binaryReader.GetU16();
-                        marketData.restrictLevel = binaryReader.GetU16();
+                        marketData.category = binaryReader.ReadUnsignedShort();
+                        marketData.tradeAs = binaryReader.ReadUnsignedShort();
+                        marketData.showAs = binaryReader.ReadUnsignedShort();
+                        marketData.name = binaryReader.ReadString();
+                        marketData.restrictProfession = binaryReader.ReadUnsignedShort();
+                        marketData.restrictLevel = binaryReader.ReadUnsignedShort();
 
                         Attributes[AttributesUniform.Market] = marketData;
                         break;
                     case Attributes1056.DefaultAction:
-                        Attributes[AttributesUniform.DefaultAction] = binaryReader.GetU16();
+                        Attributes[AttributesUniform.DefaultAction] = binaryReader.ReadUnsignedShort();
                         break;
                     case Attributes1056.Use:
                         Attributes[AttributesUniform.Use] = true;
@@ -1572,7 +1569,7 @@ namespace OpenTibiaUnity.Core.Sprites
 
                 lastAttr = previousAttr;
                 previousAttr = attr;
-                attr = binaryReader.GetU8();
+                attr = binaryReader.ReadUnsignedByte();
             }
 
             return true;

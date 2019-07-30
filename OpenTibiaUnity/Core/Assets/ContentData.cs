@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace OpenTibiaUnity.Core.Sprites
+namespace OpenTibiaUnity.Core.Assets
 {
     using ThingTypesDict = Dictionary<ushort, ThingType>;
 
@@ -17,7 +17,7 @@ namespace OpenTibiaUnity.Core.Sprites
 
     public sealed class ContentData
     {
-        Net.InputMessage m_BinaryReader;
+        IO.BinaryStream m_BinaryReader;
         int m_ClientVersion;
 
         public uint DatSignature { get; private set; }
@@ -25,18 +25,19 @@ namespace OpenTibiaUnity.Core.Sprites
         public ThingTypesDict[] ThingTypeDictionaries { get; private set; } = new ThingTypesDict[(int)ThingCategory.LastCategory];
 
         public ContentData(byte[] buffer, int clientVersion) {
-            m_BinaryReader = new Net.InputMessage(buffer);
+            m_BinaryReader = new IO.BinaryStream(buffer);
             m_ClientVersion = clientVersion;
+
+            Parse();
         }
 
-        public void Parse() {
-            DatSignature = m_BinaryReader.GetU32();
-            Console.WriteLine("Dat Signature: 0x" + DatSignature.ToString("X"));
+        private void Parse() {
+            DatSignature = m_BinaryReader.ReadUnsignedInt();
             ContentRevision = (ushort)DatSignature;
 
             int[] counts = new int[(int)ThingCategory.LastCategory];
             for (int category = 0; category < (int)ThingCategory.LastCategory; category++) {
-                int count = m_BinaryReader.GetU16() + 1;
+                int count = m_BinaryReader.ReadUnsignedShort() + 1;
                 counts[category] = count;
             }
 
@@ -69,9 +70,9 @@ namespace OpenTibiaUnity.Core.Sprites
         }
 
         public byte[] ConvertTo(int newVersion) {
-            var binaryWriter = new Net.OutputMessage();
+            var binaryWriter = new IO.BinaryStream();
 
-            binaryWriter.AddU32(ClientVersionToDatSignature(newVersion));
+            binaryWriter.WriteUnsignedInt(ClientVersionToDatSignature(newVersion));
 
             int[] counts = new int[(int)ThingCategory.LastCategory];
             for (int category = 0; category < (int)ThingCategory.LastCategory; category++) {
@@ -80,7 +81,7 @@ namespace OpenTibiaUnity.Core.Sprites
                     toWrite += 99;
 
                 counts[category] = toWrite + 1;
-                binaryWriter.AddU16((ushort)toWrite);
+                binaryWriter.WriteUnsignedShort((ushort)toWrite);
             }
 
             for (int category = 0; category < (int)ThingCategory.LastCategory; category++) {
@@ -94,7 +95,7 @@ namespace OpenTibiaUnity.Core.Sprites
                 }
             }
 
-            return binaryWriter.GetBufferArray();
+            return binaryWriter.GetBuffer();
         }
     }
 }

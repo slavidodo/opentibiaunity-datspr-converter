@@ -1,0 +1,66 @@
+syntax = "proto3";
+package OpenTibiaUnity.Protobuf.Shared;
+
+enum HookType {
+	HookTypeSouth = 0;
+	HookTypeEast = 1;
+}
+
+enum ItemCategory {
+	ItemCategoryNone = 0;
+	ItemCategoryArmors = 1;
+	ItemCategoryAmulets = 2;
+	ItemCategoryBoots = 3;
+	ItemCategoryContainers = 4;
+	ItemCategoryDecoration = 5;
+	ItemCategoryFood = 6;
+	ItemCategoryHelmetsHats = 7;
+	ItemCategoryLegs = 8;
+	ItemCategoryOthers = 9;
+	ItemCategoryPotions = 10;
+	ItemCategoryRings = 11;
+	ItemCategoryRunes = 12;
+	ItemCategoryShields = 13;
+	ItemCategoryTools = 14;
+	ItemCategoryValuables = 15;
+	ItemCategoryAmmunition = 16;
+	ItemCategoryAxes = 17;
+	ItemCategoryClubs = 18;
+	ItemCategoryDistanceWeapons = 19;
+	ItemCategorySwords = 20;
+	ItemCategoryWandsRods = 21;
+	ItemCategoryPremiumScrolls = 22;
+	ItemCategoryTibiaCoins = 23;
+	ItemCategoryCreatureProducts = 24;
+}
+
+enum PlayerProfession {
+	PlayerProfessionNone = 0;
+	PlayerProfessionKnight = 1;
+	PlayerProfessionPaladin = 2;
+	PlayerProfessionSorcerer = 3;
+	PlayerProfessionDruid = 4;
+	PlayerProfessionPromoted = 10;
+
+	PlayerProfessionAny = 255;
+}
+
+enum PlayerAction {
+	PlayerActionNone = 0;
+	PlayerActionLook = 1;
+	PlayerActionUse = 2;
+	PlayerActionOpen = 3;
+	PlayerActionAutowalkHighlight = 4;
+}
+
+enum FrameGroupType {
+	FrameGroupTypeOutfitIdle = 0;
+	FrameGroupTypeOutfitWalking = 1;
+	FrameGroupTypeObjectInitial = 2; /* introduced in tibia 11 */
+}
+
+enum AnimationLoopType {
+	AnimationLoopTypeInfinite = 0;
+	AnimationLoopTypeCounted = 1;
+	AnimationLoopTypePingPong = 255;
+}

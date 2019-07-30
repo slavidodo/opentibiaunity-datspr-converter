@@ -1,156 +1,187 @@
 syntax = "proto3";
+package OpenTibiaUnity.Protobuf.Appearances;
 
-package OpenTibiaUnity.Proto.Appearances;
-
-enum HookType {
-	South = 0;
-	East = 1;
-}
-
-enum PlayerAction {
-	None = 0;
-	Look = 1;
-	Use = 2;
-	Open = 3;
-	AutowalkHighlight = 4;
-}
-
-enum FrameGroupType {
-	FrameGroupType_Idle = 0;
-	FrameGroupType_Walking = 1;
-}
+import "shared.proto";
 
 message Appearances {
 	repeated Appearance objects = 1;
 	repeated Appearance outfits = 2;
 	repeated Appearance effects = 3;
 	repeated Appearance missles = 4;
+	SpecialMeaningAppearanceIds special_meaning_appearance_iDs = 5;
 }
 
 message Appearance {
-	uint32 id = 1;
-	AppearanceFlags flags = 2;
-	repeated FrameGroup frameGroups = 3;
+	uint32 iD = 1;
+	repeated FrameGroup frame_groups = 2;
+	AppearanceFlags flags = 3;
+	string name = 4;
 }
 
 message AppearanceFlags {
-	Ground ground = 1;
-	bool groundBorder = 2;
+	AppearanceFlagGround ground = 1;
+	bool ground_border = 2;
 	bool bottom = 3;
 	bool top = 4;
 	bool container = 5;
 	bool stackable = 6;
-	bool forceUse = 7;
-	bool multiUse = 8;
-	Writable writable = 9;
-	Writable writableOnce = 10;
-	bool fluidContainer = 11;
+	bool force_use = 7;
+	bool multi_use = 8;
+	AppearanceFlagWritable writable = 9;
+	AppearanceFlagWritableOnce writable_once = 10;
+	bool fluid_container = 11;
 	bool splash = 12;
 	bool unpassable = 13;
 	bool unmoveable = 14;
 	bool unsight = 15;
-	bool blockPath = 16;
+	bool block_path = 16;
 	bool pickupable = 17;
 	bool hangable = 18;
-	Hook hook = 19;
+	AppearanceFlagHook hook = 19;
 	bool rotateable = 20;
-	LightInfo light = 21;
-	bool dontHide = 22;
+	AppearanceFlagLight light = 21;
+	bool dont_hide = 22;
 	bool translucent = 23;
-	Offset offset = 24;
-	Elevation elevation = 25;
-	bool lyingCorpse = 26;
-	bool animateAlways = 27;
-	MiniMap minimap = 28;
-	LensHelp lensHelp = 29;
-	bool fullGround = 30;
-	bool Look = 31;
-	Clothes cloth = 32;
-	MarketInfo market = 33;
-	DefaultAction defaultAction = 34;
+	AppearanceFlagOffset offset = 24;
+	AppearanceFlagHeight height = 25;
+	bool lying_corpse = 26;
+	bool animate_always = 27;
+	AppearanceFlagAutomap automap = 28;
+	AppearanceFlagLensHelp lens_help = 29;
+	bool full_ground = 30;
+	bool ignore_look = 31;
+	AppearanceFlagClothes clothes = 32;
+	AppearanceFlagMarket market = 33;
+	AppearanceFlagDefaultAction default_action = 34;
 	bool use = 35;
 	bool wrapable = 36;
-	bool unWrapable = 37;
-	bool topEffect = 38;
+	bool un_wrapable = 37;
+	bool top_effect = 38;
+	repeated AppearanceFlagNPC npc_sale_data = 39;
+	AppearanceFlagChangedToExpire changed_to_expire = 40;
+	bool corpse = 41;
+	bool playerCorpse = 42;
+	AppearanceFlagCyclopedia cyclopedia_item = 43;
 	
-	bool floorChange = 252;
-	bool noMoveAnimation = 253;
+	bool floor_change = 252;
+	bool no_move_animation = 253;
 	bool charges = 254;
 }
 
-message Ground {
+message AppearanceFlagGround {
 	uint32 speed = 1;
 }
 
-message Writable {
-	uint32 length = 1;
+message AppearanceFlagWritable {
+	uint32 max_text_length = 1;
 }
 
-message Hook {
-	HookType type = 1;
+message AppearanceFlagWritableOnce {
+	uint32 max_text_length_once = 1;
 }
 
-message LightInfo {
+message AppearanceFlagHook {
+	Shared.HookType type = 1;
+}
+
+message AppearanceFlagLight {
 	uint32 intensity = 1;
 	uint32 color = 2;
 }
 
-message MiniMap {
-	uint32 color = 1;
-}
-
-message Offset {
+message AppearanceFlagOffset {
 	uint32 x = 1;
 	uint32 y = 2;
 }
 
-message Elevation {
+message AppearanceFlagHeight {
 	uint32 elevation = 1;
 }
 
-message LensHelp {
-	uint32 id = 1;
+message AppearanceFlagAutomap {
+	uint32 color = 1;
 }
 
-message Clothes {
+message AppearanceFlagLensHelp {
+	uint32 iD = 1;
+}
+
+message AppearanceFlagClothes {
 	uint32 slot = 1;
 }
 
-message MarketInfo {
-	uint32 category = 1;
-	uint32 tradeAs = 2;
-	uint32 showAs = 3;
-	string name = 4;
-	uint32 restrictVocation = 5;
-	uint32 requiredLevel = 6;
+message AppearanceFlagMarket {
+	Shared.ItemCategory category = 1;
+	uint32 trade_as_object_iD = 2;
+	uint32 show_as_object_iD = 3;
+	repeated Shared.PlayerProfession restrict_to_profession = 4;
+	uint32 minimum_level = 5;
 }
 
-message DefaultAction {
-	PlayerAction action = 1;
+message AppearanceFlagDefaultAction {
+	Shared.PlayerAction action = 1;
+}
+
+message AppearanceFlagNPC {
+	string name = 1;
+	string location = 2;
+	uint32 sale_price = 3;
+	uint32 buy_price = 4;
+}
+
+message AppearanceFlagChangedToExpire {
+	uint32 former_object_type_iD = 1;
+}
+
+message AppearanceFlagCyclopedia {
+	uint32 cyclopedia_type = 1;
+}
+
+message SpecialMeaningAppearanceIds {
+	uint32 gold_coin_id = 1;
+	uint32 platinum_coin_id = 2;
+	uint32 crystal_coin_id = 3;
+	uint32 tibia_coin_id = 4;
+	uint32 stamped_letter_id = 5;
+	uint32 supply_stash_id = 6;
 }
 
 message FrameGroup {
-	FrameGroupType type = 1;
-	uint32 width = 2;
-	uint32 height = 3;
-	uint32 exactSize = 4;
-	uint32 layers = 5;
-	uint32 patternWidth = 6;
-	uint32 patternHeight = 7;
-	uint32 patternDepth = 8;
-	uint32 phases = 9;
-	FrameAnimation frameAnimation = 10;
-	repeated uint32 sprites = 11;
+	Shared.FrameGroupType type = 1;
+	uint32 iD = 2;
+	SpriteInfo sprite_info = 3;
 }
 
-message FrameAnimation {
-	bool async = 1;
-	int32 loopCount = 2;
-	int32 startPhase = 3;
-	repeated FrameGroupDuration frameGroupDurations = 4;
+message SpriteInfo {
+	uint32 pattern_width = 1;
+	uint32 pattern_height = 2;
+	uint32 pattern_depth = 3;
+	uint32 layers = 4;
+	uint32 phases = 5; /* legacy animation purposes */
+	repeated uint32 sprite_iDs = 6;
+	uint32 bounding_square = 7;
+	SpriteAnimation animation = 8;
+	bool is_opaque = 9;
+	repeated Box bounding_boxes_per_direction = 10;
 }
 
-message FrameGroupDuration {
-	uint32 min = 1;
-	uint32 max = 2;
+message Box {
+	uint32 x = 1;
+	uint32 y = 2;
+	uint32 width = 3;
+	uint32 height = 4;
+}
+
+message SpriteAnimation {
+	uint32 default_start_phase = 1;
+	bool synchronized = 2;
+	bool random_start_phase = 3;
+	Shared.AnimationLoopType loop_type = 4;
+	uint32 loop_count = 5;
+	repeated SpritePhase sprite_phases = 6;
+}
+
+message SpritePhase {
+	uint32 durationMin = 1;
+	uint32 durationMax = 2;
 }
