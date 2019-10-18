@@ -1,59 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using Google.Protobuf;
-using Google.Protobuf.Collections;
-using Newtonsoft.Json.Linq;
-using OpenTibiaUnity.Core.Metaflags;
-using OpenTibiaUnity.Protobuf.Appearances;
 
 namespace OpenTibiaUnity
 {
-    // This is taken from the the OpenOpenTibiaUnity project
-
-    interface ITokenItem
-    {
-        JObject GetJObject();
-    }
-
-    struct AppearancesToken : ITokenItem
-    {
-        public string file;
-
-        public AppearancesToken(string file) {
-            this.file = file;
-        }
-
-        public JObject GetJObject() {
-            JObject obj = new JObject();
-            obj["type"] = "appearances";
-            obj["file"] = file;
-            return obj;
-        }
-    }
-
-    struct SpritesToken : ITokenItem
-    {
-        public string file;
-        public int spritetype;
-        public int firstspriteid;
-        public int lastspriteid;
-
-        public JObject GetJObject() {
-            JObject obj = new JObject();
-            obj["type"] = "sprite";
-            obj["file"] = file;
-            obj["spritetype"] = spritetype;
-            obj["firstspriteid"] = firstspriteid;
-            obj["lastspriteid"] = lastspriteid;
-            return obj;
-        }
-    }
-
     static class Program
     {
         public const int SEGMENT_DIMENTION = 512;

@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace OpenTibiaUnity.Core.Converter
@@ -18,7 +16,6 @@ namespace OpenTibiaUnity.Core.Converter
         private int m_BuildVersion;
         private string m_AppearancesFile = null;
         private List<SpriteTypeImpl> m_SpriteSheet = new List<SpriteTypeImpl>();
-        private List<ITokenItem> m_JsonTokens = new List<ITokenItem>();
 
         public ProtobufConverter(int clientVersion, int buildVersion) {
             m_ClientVersion = clientVersion;
@@ -28,9 +25,10 @@ namespace OpenTibiaUnity.Core.Converter
         public async Task<bool> BeginProcessing() {
             await Task.Yield();
 
-            var defaultPath = Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "assets");
+            var loadPath = Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "assets");
+            var resultPath = Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result");
 
-            string catalogContentFile = Path.Combine(defaultPath, "catalog-content.json");
+            string catalogContentFile = Path.Combine(loadPath, "catalog-content.json");
             if (!File.Exists(catalogContentFile)) {
                 Console.WriteLine("catalog-content.json not found at {0}", catalogContentFile);
                 return false;
@@ -38,7 +36,7 @@ namespace OpenTibiaUnity.Core.Converter
 
             ParseCatalogContent(catalogContentFile);
             
-            string datFile = Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "assets", m_AppearancesFile);
+            string datFile = Path.Combine(loadPath, m_AppearancesFile);
             if (!File.Exists(datFile)) {
                 Console.WriteLine("appearances.dat not found at {0}", datFile);
                 return false;
@@ -67,72 +65,65 @@ namespace OpenTibiaUnity.Core.Converter
                 openTibiaAppearances.SpecialMeaningAppearanceIDs.SupplyStashId = tibiaAppearances.SpecialMeaningAppearanceIds.SupplyStashId;
             }
 
-            m_JsonTokens.Add(new AppearancesToken() {
-                file = "appearances.dat"
-            });
-
-            Directory.CreateDirectory(Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result"));
+            Directory.CreateDirectory(resultPath);
 
             // saving appearances.dat (with the respective version)
-            using (var stream = File.Create(Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result", "appearances.dat"))) {
+            using (var stream = File.Create(Path.Combine(resultPath, "appearances.otud"))) {
                 openTibiaAppearances.WriteTo(stream);
             }
             
             Console.Write("Processing Spritesheets...");
-            Directory.CreateDirectory(Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result", "sprites"));
 
-            var spriteBuffer = new MemoryStream();
-            foreach (var spriteType in m_SpriteSheet) {
-                var spriteFile = Path.Combine(defaultPath, spriteType.File);
-                if (!File.Exists(spriteFile))
-                    continue;
+            using (var spriteStream = new FileStream(Path.Combine(resultPath, "assets.otus"), FileMode.Create))
+            using (var binaryWriter = new BinaryWriter(spriteStream)) {
+                binaryWriter.Write((uint)m_SpriteSheet.Count);
 
-                var decoder = new SevenZip.Compression.LZMA.Decoder();
-                using (BinaryReader reader = new BinaryReader(File.OpenRead(spriteFile))) {
-                    var input = reader.BaseStream;
+                var spriteBuffer = new MemoryStream();
+                foreach (var spriteType in m_SpriteSheet) {
+                    var spriteFile = Path.Combine(loadPath, spriteType.File);
+                    if (!File.Exists(spriteFile))
+                        continue;
 
-                    while (reader.ReadByte() == 0) { }
-                    reader.ReadUInt32();
+                    var decoder = new SevenZip.Compression.LZMA.Decoder();
+                    using (BinaryReader reader = new BinaryReader(File.OpenRead(spriteFile))) {
+                        binaryWriter.Write(spriteType.AtlasID);
+                        binaryWriter.Write((ushort)spriteType.SpriteType);
+                        binaryWriter.Write(spriteType.FirstSpriteID);
+                        binaryWriter.Write(spriteType.LastSpriteID);
 
-                    while ((reader.ReadByte() & 0x80) == 0x80) { } // LZMA size, 7-bit integer where MSB = flag for next byte used
+                        while (reader.ReadByte() == 0) { }
+                        reader.ReadUInt32();
 
-                    // LZMA file
-                    decoder.SetDecoderProperties(reader.ReadBytes(5));
-                    reader.ReadUInt64(); // Should be the decompressed size but CIP writes the compressed sized, so just use a large buffer size
+                        while ((reader.ReadByte() & 0x80) == 0x80) { }
+                        decoder.SetDecoderProperties(reader.ReadBytes(5));
+                        reader.ReadUInt64();
 
-                    // Disabled arithmetic underflow/overflow check in debug mode so this won't cause an exception
-                    spriteBuffer.Position = 0;
-                    decoder.Code(input, spriteBuffer, input.Length - input.Position, 0x100000, null);
+                        spriteBuffer.Position = 0;
+                        var input = reader.BaseStream;
+                        decoder.Code(input, spriteBuffer, input.Length - input.Position, 0x100000, null);
 
-                    spriteBuffer.Position = 0;
-                    var image = Image.FromStream(spriteBuffer);
+                        spriteBuffer.Position = 0;
+                        var image = Image.FromStream(spriteBuffer);
 
-                    var filename = string.Format("sprites-{0}-{1}.png", spriteType.FirstSpriteID, spriteType.LastSpriteID);
-                    var path = Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result", "sprites", filename);
-                    image.Save(path, ImageFormat.Png);
+                        using (MemoryStream tmpStream = new MemoryStream()) {
+                            image.Save(tmpStream, ImageFormat.Png);
 
-                    m_JsonTokens.Add(new SpritesToken() {
-                        file = filename,
-                        spritetype = spriteType.SpriteType,
-                        firstspriteid = (int)spriteType.FirstSpriteID,
-                        lastspriteid = (int)spriteType.LastSpriteID,
-                    });
+                            uint length = (uint)tmpStream.Length;
+                            tmpStream.Position = 0;
+
+                            byte[] buffer = new byte[length];
+                            tmpStream.Read(buffer, 0, (int)length);
+
+                            binaryWriter.Write(length);
+                            binaryWriter.Write(buffer);
+                        }
+                    }
                 }
+
+                spriteBuffer.Dispose();
             }
 
-            spriteBuffer.Dispose();
             Console.WriteLine("\rProcessing Spritesheets: Done!");
-
-            // saving spritesheets information (catalog-content)
-            using (FileStream file = File.Create(Path.Combine(m_ClientVersion.ToString(), m_BuildVersion.ToString(), "result", "catalog-content.json"))) {
-                var catalogJson = new JArray();
-                foreach (var token in m_JsonTokens)
-                    catalogJson.Add(token.GetJObject());
-
-                string str = catalogJson.ToString();
-                file.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
-            }
-
             return true;
         }
 
@@ -347,7 +338,8 @@ namespace OpenTibiaUnity.Core.Converter
             var catalogObjects = (JArray)JsonConvert.DeserializeObject(File.ReadAllText(filename));
             if (catalogObjects == null)
                 throw new System.Exception("SpriteProvider.SpritesProvider: Invalid catalog-content JSON");
-            
+
+            uint index = 0;
             foreach (var @object in catalogObjects.Children<JObject>()) {
                 var typeProperty = @object.Property("type");
                 if (typeProperty == null)
@@ -366,15 +358,16 @@ namespace OpenTibiaUnity.Core.Converter
                     || !@object.TryGetValue("lastspriteid", out JToken lastSpriteIDToken))
                     continue;
 
-                try {
-                    m_SpriteSheet.Add(new SpriteTypeImpl() {
-                        File = (string)fileToken,
-                        SpriteType = (int)spriteTypeToken + 1,
-                        FirstSpriteID = (uint)firstSpriteIDToken,
-                        LastSpriteID = (uint)lastSpriteIDToken
-                    });
-                } catch (System.InvalidCastException) { }
+                m_SpriteSheet.Add(new SpriteTypeImpl() {
+                    File = (string)fileToken,
+                    SpriteType = (int)spriteTypeToken + 1,
+                    FirstSpriteID = (uint)firstSpriteIDToken,
+                    LastSpriteID = (uint)lastSpriteIDToken,
+                    AtlasID = index++,
+                });
             }
+
+            m_SpriteSheet.Sort((a, b) => a.FirstSpriteID.CompareTo(b.FirstSpriteID));
         }
     }
 }

@@ -9,6 +9,7 @@ namespace OpenTibiaUnity.Core.Converter
         public int SpriteType;
         public uint FirstSpriteID;
         public uint LastSpriteID;
+        public uint AtlasID;
     }
 
     interface IConverter

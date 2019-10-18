@@ -1,6 +1,5 @@
 ﻿using Google.Protobuf;
 using Google.Protobuf.Collections;
-using Newtonsoft.Json.Linq;
 using OpenTibiaUnity.Core.Metaflags;
 using OpenTibiaUnity.Protobuf.Appearances;
 using System;
@@ -33,8 +32,8 @@ namespace OpenTibiaUnity.Core.Converter
         private uint m_ReferencedSpriteID = 0;
         private uint m_ReferenceFrameGroupID = 0;
         private bool m_UseAlpha;
-        private List<ITokenItem> m_JsonTokens = new List<ITokenItem>();
         private Dictionary<FrameGroup, FrameGroupDetail> m_FrameGroupDetails = new Dictionary<FrameGroup, FrameGroupDetail>();
+        private List<SpriteTypeImpl> m_SpriteSheet = new List<SpriteTypeImpl>();
         private List<Task> m_Tasks = new List<Task>();
         private LimitedConcurrencyLevelTaskScheduler m_LCTS;
         private TaskFactory m_TaskFactory;
@@ -219,9 +218,6 @@ namespace OpenTibiaUnity.Core.Converter
                     }
                 }
 
-                m_JsonTokens.Add(new AppearancesToken() {
-                    file = "appearances.dat"
-                });
                 return appearances;
             } catch (Exception e) {
                 Console.WriteLine(e.Message + '\n' + e.StackTrace);
@@ -253,8 +249,10 @@ namespace OpenTibiaUnity.Core.Converter
                 return false;
             }
 
+            string resultPath = Path.Combine(m_ClientVersion.ToString(), "result");
+
             Console.Write("Processing Spritesheets...");
-            Directory.CreateDirectory(Path.Combine(m_ClientVersion.ToString(), "result", "sprites"));
+            Directory.CreateDirectory(Path.Combine(resultPath, "sprites"));
 
             int start = 0;
             SaveSprites(appearances.Outfits, ref start, contentSprites);
@@ -266,38 +264,39 @@ namespace OpenTibiaUnity.Core.Converter
             Console.WriteLine("\rProcessing Spritesheets: Done!");
 
             // saving appearances.dat (with the respective version)
-            using (var stream = File.Create(Path.Combine(m_ClientVersion.ToString(), "result", "appearances.dat"))) {
+            using (var stream = File.Create(Path.Combine(resultPath, "appearances.otud"))) {
                 appearances.WriteTo(stream);
             }
 
-            // saving spritesheets information (catalog-content)
-            using (FileStream file = File.Create(Path.Combine(m_ClientVersion.ToString(), "result", "catalog-content.json"))) {
-                m_JsonTokens.Sort(ITokenItemSort);
+            // save spritesheets
+            using (var spriteStream = new FileStream(Path.Combine(resultPath, "assets.otus"), FileMode.Create))
+            using (var binaryWriter = new BinaryWriter(spriteStream)) {
+                m_SpriteSheet.Sort((a, b) => {
+                    return a.FirstSpriteID.CompareTo(b.FirstSpriteID);
+                });
 
-                var catalogJson = new JArray();
-                foreach (var token in m_JsonTokens)
-                    catalogJson.Add(token.GetJObject());
+                binaryWriter.Write((uint)m_SpriteSheet.Count);
+                uint index = 0;
+                foreach (var spriteType in m_SpriteSheet) {
+                    spriteType.AtlasID = index++;
 
-                string str = catalogJson.ToString();
-                file.Write(Encoding.ASCII.GetBytes(str), 0, str.Length);
+                    var buffer = File.ReadAllBytes(Path.Combine(resultPath, "sprites", spriteType.File));
+                    binaryWriter.Write(spriteType.AtlasID);
+                    binaryWriter.Write((ushort)spriteType.SpriteType);
+                    binaryWriter.Write(spriteType.FirstSpriteID);
+                    binaryWriter.Write(spriteType.LastSpriteID);
+
+                    binaryWriter.Write((uint)buffer.Length);
+                    binaryWriter.Write(buffer);
+                }
             }
 
+            Directory.Delete(Path.Combine(resultPath, "sprites"), true);
             return true;
         }
 
         public List<SpriteTypeImpl> GetSpriteSheet() {
-            var spriteSheet = new List<SpriteTypeImpl>();
-            foreach (var token in m_JsonTokens) {
-                if (token is SpritesToken spritesToken) {
-                    spriteSheet.Add(new SpriteTypeImpl() {
-                        File = spritesToken.file,
-                        SpriteType = spritesToken.spritetype,
-                        FirstSpriteID = (uint)spritesToken.firstspriteid,
-                        LastSpriteID = (uint)spritesToken.lastspriteid
-                    });
-                }
-            }
-            return spriteSheet;
+            return m_SpriteSheet;
         }
 
         static void DrawBitmap32x32From1_32x32(AsyncGraphics gfx, Bitmap[] bitmaps, int x = 0, int y = 0) {
@@ -339,17 +338,6 @@ namespace OpenTibiaUnity.Core.Converter
             if (bitmaps[0] != null) gfx.DrawImage(bitmaps[0], x + 32, y + 32, 32, 32);
         }
 
-        private static int ITokenItemSort(ITokenItem x, ITokenItem y) {
-            if (x is AppearancesToken)
-                return -1;
-            else if (y is AppearancesToken)
-                return 1;
-
-            SpritesToken a = (SpritesToken)x;
-            SpritesToken b = (SpritesToken)y;
-            return a.firstspriteid.CompareTo(b.firstspriteid);
-        }
-
         private void InternalSaveStaticBitmaps(RepeatedField<uint> sprites, DrawBitmapsDelegate drawFunc, int parts, int spriteType, int localStart, Assets.ContentSprites sprParser, int width, int height) {
             int singleSize = width * height;
 
@@ -370,11 +358,11 @@ namespace OpenTibiaUnity.Core.Converter
                     filename = string.Format("sprites-{0}-{1}.png", localStart, localStart + (Program.BITMAP_SIZE / singleSize) - 1);
                     m_Tasks.Add(gfx.SaveAndDispose(Path.Combine(m_ClientVersion.ToString(), "result", "sprites", filename)));
 
-                    m_JsonTokens.Add(new SpritesToken() {
-                        file = filename,
-                        spritetype = spriteType,
-                        firstspriteid = localStart,
-                        lastspriteid = localStart + (Program.BITMAP_SIZE / singleSize) - 1
+                    m_SpriteSheet.Add(new SpriteTypeImpl() {
+                        File = filename,
+                        SpriteType = spriteType,
+                        FirstSpriteID = (uint)localStart,
+                        LastSpriteID = (uint)(localStart + (Program.BITMAP_SIZE / singleSize) - 1)
                     });
 
                     localStart += Program.BITMAP_SIZE / singleSize;
@@ -405,11 +393,11 @@ namespace OpenTibiaUnity.Core.Converter
             filename = string.Format("sprites-{0}-{1}.png", localStart, end - 1);
             m_Tasks.Add(gfx.SaveAndDispose(Path.Combine(m_ClientVersion.ToString(), "result", "sprites", filename)));
 
-            m_JsonTokens.Add(new SpritesToken() {
-                file = filename,
-                spritetype = spriteType,
-                firstspriteid = localStart,
-                lastspriteid = end - 1
+            m_SpriteSheet.Add(new SpriteTypeImpl() {
+                File = filename,
+                SpriteType = spriteType,
+                FirstSpriteID = (uint)localStart,
+                LastSpriteID = (uint)(end - 1)
             });
         }
 
