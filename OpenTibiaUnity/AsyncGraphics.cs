@@ -51,8 +51,12 @@ namespace OpenTibiaUnity
 
         public async Task DisposeOnDone(IEnumerable<Bitmap> bitmaps) {
             await Task.WhenAll(m_DrawTasks);
-            foreach (var bitmap in bitmaps)
-                bitmap.Dispose();
+            foreach (var bitmap in bitmaps) { 
+                if (bitmap != null) {
+                    bitmap.Dispose();
+                }
+            }
+                
         }
 
         public async Task SaveAndDispose(string filename) {
