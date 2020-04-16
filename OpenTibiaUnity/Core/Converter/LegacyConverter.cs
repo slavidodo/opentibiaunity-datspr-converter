@@ -289,7 +289,7 @@ namespace OpenTibiaUnity.Core.Converter
                 }
             }
 
-            Directory.Delete(Path.Combine(resultPath, "sprites"), true);
+            // Directory.Delete(Path.Combine(resultPath, "sprites"), true);
             return true;
         }
 
@@ -331,17 +331,22 @@ namespace OpenTibiaUnity.Core.Converter
                 }
 
                 if (y >= Program.SEGMENT_DIMENTION || (Program.SEGMENT_DIMENTION) - y < height)  {
-                    filename = string.Format("sprites-{0}-{1}.png", localStart, localStart + (Program.BITMAP_SIZE / singleSize) - 1);
+                    int countMaxSprites = (Program.SEGMENT_DIMENTION / width) * (Program.SEGMENT_DIMENTION / height);
+
+                    filename = string.Format("sprites-{0}-{1}.png", localStart, localStart + countMaxSprites - 1);
                     m_Tasks.Add(gfx.SaveAndDispose(Path.Combine(m_ClientVersion.ToString(), "result", "sprites", filename)));
 
-                    m_SpriteSheet.Add(new SpriteTypeImpl() {
+
+                    var spriteTypeImpl = new SpriteTypeImpl() {
                         File = filename,
                         SpriteType = spriteType,
                         FirstSpriteID = (uint)localStart,
-                        LastSpriteID = (uint)(localStart + (Program.BITMAP_SIZE / singleSize) - 1)
-                    });
+                        LastSpriteID = (uint)(localStart + countMaxSprites - 1)
+                    };
 
-                    localStart += Program.BITMAP_SIZE / singleSize;
+                    m_SpriteSheet.Add(spriteTypeImpl);
+
+                    localStart += countMaxSprites;
 
                     gfx = new AsyncGraphics(new Bitmap(Program.SEGMENT_DIMENTION, Program.SEGMENT_DIMENTION));
                     x = y = z = 0;
